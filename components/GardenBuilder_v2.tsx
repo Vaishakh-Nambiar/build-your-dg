@@ -31,8 +31,10 @@ function useSize() {
             const newWidth = entry.contentRect.width;
             console.log('🔍 [GRID DEBUG] Container ResizeObserver triggered:');
             console.log('  📏 Container Width:', newWidth, 'px');
+            console.log('  🖥️ Viewport Width:', window.innerWidth, 'px');
             console.log('  📐 Column Width (with 12 cols, 12px margin):', (newWidth - (11 * 12)) / 12, 'px');
             console.log('  🎯 Max X position for column 12:', 11, '(0-indexed)');
+            console.log('  ⚠️ Width difference (viewport - container):', window.innerWidth - newWidth, 'px (should be ~64-96px for padding)');
             setWidth(newWidth);
         });
         observer.observe(ref.current);
@@ -71,6 +73,18 @@ export default function GardenBuilder() {
     const [showGrid, setShowGrid] = useState(false);
     const [filter, setFilter] = useState<string | null>(null);
     const { width, ref: containerRef } = useSize();
+
+    // Extract unique categories from blocks
+    const categories = useMemo(() => {
+        const cats = blocks.map(b => b.category).filter(Boolean);
+        return Array.from(new Set(cats));
+    }, [blocks]);
+
+    // Filter blocks based on selected category
+    const filteredBlocks = useMemo(() => {
+        if (!filter) return blocks;
+        return blocks.filter(b => b.category === filter);
+    }, [blocks, filter]);
 
     useEffect(() => {
         setIsMount(true);
@@ -143,16 +157,36 @@ export default function GardenBuilder() {
     if (!isMount) return null;
 
     return (
-        <div className="min-h-screen p-8 pb-32 sm:p-12 bg-[#F9F9F9] overflow-x-hidden">
+        <div className="min-h-screen bg-[#F9F9F9]">
             <AnimatePresence>
                 {isNewUser && <Onboarding onComplete={(d) => { setGardenName(d.name); setIsNewUser(false); }} />}
             </AnimatePresence>
 
-            <nav className="fixed top-6 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-4 rounded-full bg-white/80 px-6 py-3 shadow-xl backdrop-blur-md border border-black/5">
-                <span className="font-serif-display text-lg font-bold italic">{gardenName}</span>
-                <div className="h-6 w-px bg-black/10 mx-2" />
-                <button onClick={() => setFilter(null)} className={cn("px-3 py-1 rounded-full text-[10px] font-bold uppercase transition-all", !filter ? "bg-black text-white" : "text-gray-400 hover:text-black")}>All</button>
-                <div className="h-6 w-px bg-black/10 mx-2" />
+            <nav className="fixed top-6 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-3 rounded-full bg-white/80 px-6 py-3 shadow-xl backdrop-blur-md border border-black/5 max-w-[90vw] overflow-x-auto">
+                <span className="font-serif-display text-lg font-bold italic whitespace-nowrap">{gardenName}</span>
+                <div className="h-6 w-px bg-black/10 mx-1" />
+                <button
+                    onClick={() => setFilter(null)}
+                    className={cn(
+                        "px-3 py-1 rounded-full text-[10px] font-bold uppercase transition-all whitespace-nowrap",
+                        !filter ? "bg-black text-white" : "text-gray-400 hover:text-black hover:bg-gray-100"
+                    )}
+                >
+                    All
+                </button>
+                {categories.map(cat => (
+                    <button
+                        key={cat}
+                        onClick={() => setFilter(cat)}
+                        className={cn(
+                            "px-3 py-1 rounded-full text-[10px] font-bold uppercase transition-all whitespace-nowrap",
+                            filter === cat ? "bg-black text-white" : "text-gray-400 hover:text-black hover:bg-gray-100"
+                        )}
+                    >
+                        {cat}
+                    </button>
+                ))}
+                <div className="h-6 w-px bg-black/10 mx-1" />
                 <a href="https://github.com" target="_blank" rel="noopener noreferrer" className="p-2 rounded-full hover:bg-black/5 transition-colors" title="GitHub">
                     <Github size={18} className="text-black/60" />
                 </a>
@@ -164,11 +198,11 @@ export default function GardenBuilder() {
                 </a>
             </nav>
 
-            <header className="mb-12 mt-20">
+            <header className="mb-12 mt-20 px-8 sm:px-12">
                 <h1 className="font-serif-display text-5xl font-bold italic">{gardenName}</h1>
             </header>
 
-            <div ref={containerRef} className="relative min-h-[600px] w-full max-w-full">
+            <div ref={containerRef} className="relative min-h-[600px] w-full px-8 sm:px-12 pb-32">
                 {showGrid && (
                     <div className="absolute inset-0 pointer-events-none z-10">
                         <div className="absolute top-[-30px] left-0 right-0 grid grid-cols-12 gap-3">
@@ -198,23 +232,26 @@ export default function GardenBuilder() {
                 <Responsive
                     width={width}
                     layouts={{
-                        lg: blocks.map(b => ({ i: b.id, x: b.x, y: b.y, w: b.w, h: b.h })),
-                        md: blocks.map(b => ({ i: b.id, x: b.x, y: b.y, w: b.w, h: b.h })),
-                        sm: blocks.map(b => ({ i: b.id, x: b.x, y: b.y, w: b.w, h: b.h })),
-                        xs: blocks.map(b => ({ i: b.id, x: b.x, y: b.y, w: b.w, h: b.h })),
-                        xxs: blocks.map(b => ({ i: b.id, x: b.x, y: b.y, w: b.w, h: b.h }))
+                        lg: filteredBlocks.map(b => ({ i: b.id, x: b.x, y: b.y, w: b.w, h: b.h })),
+                        md: filteredBlocks.map(b => ({ i: b.id, x: b.x, y: b.y, w: b.w, h: b.h })),
+                        sm: filteredBlocks.map(b => ({ i: b.id, x: b.x, y: b.y, w: b.w, h: b.h })),
+                        xs: filteredBlocks.map(b => ({ i: b.id, x: b.x, y: b.y, w: b.w, h: b.h })),
+                        xxs: filteredBlocks.map(b => ({ i: b.id, x: b.x, y: b.y, w: b.w, h: b.h }))
                     }}
                     breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
                     cols={{ lg: 12, md: 12, sm: 12, xs: 12, xxs: 12 }}
+                    maxCols={12}
                     rowHeight={ROW_HEIGHT}
                     containerPadding={[0, 0]}
                     margin={[12, 12]}
+                    compactType={null}
+                    preventCollision={false}
                     isDraggable={isEditMode}
                     isResizable={isEditMode}
                     draggableHandle=".drag-handle"
                     onLayoutChange={onLayoutChange}
                 >
-                    {blocks.map(block => (
+                    {filteredBlocks.map(block => (
                         <div key={block.id} data-grid={{ x: block.x, y: block.y, w: block.w, h: block.h }}>
                             <Block
                                 data={block}
