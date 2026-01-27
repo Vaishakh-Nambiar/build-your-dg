@@ -1,0 +1,209 @@
+'use client';
+
+import React, { useEffect, useState, useMemo, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Plus, Settings2, Check, Grid, Github, Twitter, FileText } from 'lucide-react';
+import { Block, BlockData, BlockType } from './Block';
+import { Onboarding } from './Onboarding';
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+
+function cn(...inputs: ClassValue[]) {
+    return twMerge(clsx(inputs));
+}
+
+import 'react-grid-layout/css/styles.css';
+import 'react-resizable/css/styles.css';
+
+const RGL = require('react-grid-layout');
+const Responsive = RGL.Responsive;
+
+interface Layout {
+    i: string; y: number; x: number; w: number; h: number;
+}
+
+function useSize() {
+    const [width, setWidth] = useState(1200);
+    const ref = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        if (!ref.current) return;
+        const observer = new ResizeObserver(([entry]) => {
+            setWidth(entry.contentRect.width);
+        });
+        observer.observe(ref.current);
+        return () => observer.disconnect();
+    }, []);
+    return { width, ref };
+}
+
+const ROW_HEIGHT = 100;
+const INITIAL_BLOCKS: BlockData[] = [
+    {
+        id: '1', type: 'image', category: 'Hobbies · Film',
+        imageUrl: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&w=800&q=80',
+        imageTag: 'FilmNeverDie KIRO 400', title: 'Cat',
+        x: 0, y: 0, w: 3, h: 4, objectFit: 'cover', isPolaroid: true
+    },
+    {
+        id: '2', type: 'thought', category: 'Idea', title: 'Sticky Note',
+        content: 'Digital gardens are less about the platform.',
+        x: 3, y: 0, w: 3, h: 4, color: '#fbf8cc'
+    },
+    {
+        id: '3', type: 'quote', category: 'Inspiration', title: 'Quote',
+        content: 'We shape our tools.', author: 'Marshall McLuhan',
+        x: 6, y: 0, w: 6, h: 3
+    },
+];
+
+export default function GardenBuilder() {
+    const [isMount, setIsMount] = useState(false);
+    const [blocks, setBlocks] = useState<BlockData[]>(INITIAL_BLOCKS);
+    const [gardenName, setGardenName] = useState('My Garden');
+    const [isEditMode, setIsEditMode] = useState(false);
+    const [isNewUser, setIsNewUser] = useState(true);
+    const [showAddMenu, setShowAddMenu] = useState(false);
+    const [showGrid, setShowGrid] = useState(false);
+    const [filter, setFilter] = useState<string | null>(null);
+    const { width, ref: containerRef } = useSize();
+
+    useEffect(() => {
+        setIsMount(true);
+        const saved = localStorage.getItem('garden-blocks');
+        if (saved) { try { setBlocks(JSON.parse(saved)); } catch (e) { } }
+        const name = localStorage.getItem('garden-name');
+        if (name) setGardenName(name);
+        if (localStorage.getItem('garden-new-user') === 'false') setIsNewUser(false);
+    }, []);
+
+    const handleReset = () => {
+        if (window.confirm("Reset?")) {
+            localStorage.removeItem('garden-blocks');
+            window.location.reload();
+        }
+    };
+
+    useEffect(() => {
+        if (!isMount) return;
+        localStorage.setItem('garden-blocks', JSON.stringify(blocks));
+        localStorage.setItem('garden-name', gardenName);
+        localStorage.setItem('garden-new-user', String(isNewUser));
+    }, [blocks, gardenName, isNewUser, isMount]);
+
+    const addBlock = (type: BlockType) => {
+        const id = Date.now().toString();
+        const newBlock: BlockData = { id, type, category: 'New', title: 'New Item', x: 0, y: 0, w: 3, h: 3, color: '#ffffff' };
+        setBlocks([...blocks, newBlock]);
+        setShowAddMenu(false);
+        setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }), 100);
+    };
+
+    const onLayoutChange = (l: any) => {
+        const updated = blocks.map(b => {
+            const item = l.find((li: any) => li.i === b.id);
+            return item ? { ...b, x: item.x, y: item.y, w: item.w, h: item.h } : b;
+        });
+        setBlocks(updated);
+    };
+
+    if (!isMount) return null;
+
+    return (
+        <div className="min-h-screen p-8 pb-32 sm:p-12 bg-[#F9F9F9] overflow-x-hidden">
+            <AnimatePresence>
+                {isNewUser && <Onboarding onComplete={(d) => { setGardenName(d.name); setIsNewUser(false); }} />}
+            </AnimatePresence>
+
+            <nav className="fixed top-6 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-4 rounded-full bg-white/80 px-6 py-2 shadow-lg backdrop-blur-xl border border-black/5">
+                <span className="font-serif-display text-lg font-bold italic">{gardenName}</span>
+                <div className="h-6 w-px bg-black/10 mx-2" />
+                <button onClick={() => setFilter(null)} className={cn("px-3 py-1 rounded-full text-[10px] font-bold uppercase", !filter ? "bg-black text-white" : "text-gray-400")}>All</button>
+            </nav>
+
+            <header className="mb-12 mt-20">
+                <h1 className="font-serif-display text-5xl font-bold italic">{gardenName}</h1>
+            </header>
+
+            <div ref={containerRef} className="relative min-h-[600px] w-full max-w-full">
+                {showGrid && (
+                    <div className="absolute inset-0 pointer-events-none z-10">
+                        <div className="absolute top-[-30px] left-0 right-0 grid grid-cols-12 gap-3">
+                            {Array.from({ length: 12 }).map((_, i) => (
+                                <div key={i} className="text-[11px] font-bold text-black/40 text-center">{i + 1}</div>
+                            ))}
+                        </div>
+                        <div className="absolute top-0 left-[-40px] bottom-0 flex flex-col">
+                            {Array.from({ length: 20 }).map((_, i) => (
+                                <div key={i} className="flex items-center justify-center text-[11px] font-bold text-black/40" style={{ height: ROW_HEIGHT + 12 }}>{i + 1}</div>
+                            ))}
+                        </div>
+                        <div className="h-full w-full grid grid-cols-12 gap-3 opacity-20">
+                            {Array.from({ length: 12 }).map((_, i) => (
+                                <div key={i} className={cn("h-full border-x border-dashed border-black", i === 11 ? "bg-yellow-300/30" : "bg-black/[0.01]")} />
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                <Responsive
+                    width={width}
+                    layouts={{
+                        lg: blocks.map(b => ({ i: b.id, x: b.x, y: b.y, w: b.w, h: b.h })),
+                        md: blocks.map(b => ({ i: b.id, x: b.x, y: b.y, w: b.w, h: b.h })),
+                        sm: blocks.map(b => ({ i: b.id, x: b.x, y: b.y, w: b.w, h: b.h })),
+                        xs: blocks.map(b => ({ i: b.id, x: b.x, y: b.y, w: b.w, h: b.h })),
+                        xxs: blocks.map(b => ({ i: b.id, x: b.x, y: b.y, w: b.w, h: b.h }))
+                    }}
+                    cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
+                    rowHeight={ROW_HEIGHT}
+                    margin={[12, 12]}
+                    isDraggable={isEditMode}
+                    isResizable={isEditMode}
+                    onLayoutChange={onLayoutChange}
+                >
+                    {blocks.map(block => (
+                        <div key={block.id} data-grid={{ x: block.x, y: block.y, w: block.w, h: block.h }}>
+                            <Block
+                                data={block}
+                                isEditMode={isEditMode}
+                                onDelete={(id) => setBlocks(p => p.filter(b => b.id !== id))}
+                                onUpdate={(id, d) => setBlocks(p => p.map(b => b.id === id ? { ...b, ...d } : b))}
+                            />
+                        </div>
+                    ))}
+                </Responsive>
+            </div>
+
+            <div className="fixed bottom-8 right-8 flex items-center gap-4 z-[100]">
+                <button onClick={() => setShowGrid(!showGrid)} className={cn("flex h-14 w-14 items-center justify-center rounded-full shadow-xl", showGrid ? 'bg-black text-white' : 'bg-white text-black')}><Grid size={24} /></button>
+                <button onClick={() => setIsEditMode(!isEditMode)} className={cn("flex h-14 w-14 items-center justify-center rounded-full shadow-xl", isEditMode ? 'bg-black text-white' : 'bg-white text-black')}>{isEditMode ? <Check size={24} /> : <Settings2 size={24} />}</button>
+            </div>
+
+            <div className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] transition-all ${isEditMode ? 'translate-y-0 opacity-100' : 'translate-y-20 opacity-0 pointer-events-none'}`}>
+                <AnimatePresence>
+                    {showAddMenu && (
+                        <motion.div className="absolute bottom-20 left-1/2 -translate-x-1/2 flex flex-col gap-2 rounded-2xl bg-white p-2 shadow-xl border border-black/5 min-w-[140px]">
+                            {(['text', 'image', 'quote', 'thought', 'project'] as BlockType[]).map(type => (
+                                <button key={type} onClick={() => addBlock(type)} className="px-4 py-2 hover:bg-gray-50 rounded-xl text-xs font-semibold uppercase">{type}</button>
+                            ))}
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+                <button onClick={() => setShowAddMenu(!showAddMenu)} className="flex h-16 w-16 items-center justify-center rounded-full shadow-2xl bg-black text-white"><Plus size={32} /></button>
+            </div>
+
+            <div className="fixed bottom-8 left-8 z-[100]">
+                <button onClick={handleReset} className="flex h-14 px-6 items-center justify-center rounded-full bg-white text-red-500 font-bold text-xs uppercase shadow-lg border border-red-50 hover:bg-red-50">Reset Garden</button>
+            </div>
+
+            <style jsx global>{`
+                .react-grid-placeholder {
+                    background: rgba(0,0,0,0.05) !important;
+                    border: 2px dashed rgba(0,0,0,0.5) !important;
+                    border-radius: 12px !important;
+                    opacity: 1 !important;
+                }
+            `}</style>
+        </div>
+    );
+}
