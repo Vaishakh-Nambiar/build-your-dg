@@ -163,6 +163,11 @@ export const GridEngine = ({
                 .react-resizable-handle-se { cursor: nwse-resize; }
                 .react-resizable-handle-e { cursor: col-resize; }
                 .react-resizable-handle-s { cursor: row-resize; }
+
+                .react-grid-item {
+                    transition: all 500ms cubic-bezier(0.23, 1, 0.32, 1);
+                    transition-property: left, top, width, height;
+                }
                 
                 /* CRITICAL: Disable all transitions during active interactions to prevent lag */
                 .react-grid-item.resizing, 

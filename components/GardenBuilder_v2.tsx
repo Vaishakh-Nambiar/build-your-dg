@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useMemo } from 'react';
-import { AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Block, BlockData } from './Block';
 import { Onboarding } from './Onboarding';
 import { Navbar } from './garden/Navbar';
@@ -179,12 +179,10 @@ export default function GardenBuilder() {
                     isEditMode={isEditMode}
                     currentLayout={blocks.map(b => ({ i: b.id, x: b.x, y: b.y, w: b.w, h: b.h }))}
                     onLayoutChange={(newLayout) => {
-                        // Keep state in sync if RGL changes things internally
                         const updated = blocks.map(b => {
                             const l = newLayout.find(li => li.i === b.id);
                             return l ? { ...b, x: l.x, y: l.y, w: l.w, h: l.h } : b;
                         });
-                        // Only update if actually different to prevent flicker
                         if (JSON.stringify(updated) !== JSON.stringify(blocks)) {
                             setBlocks(updated);
                         }
@@ -194,16 +192,23 @@ export default function GardenBuilder() {
                     sidePadding={sidePadding}
                 >
                     {blocks.map(block => (
-                        <Block
-                            key={block.id}
-                            data-id={block.id}
-                            data={block}
-                            isEditMode={isEditMode}
-                            isDebugMode={isDebugMode}
-                            isDimmed={!!(filter && !block.category.startsWith(filter))}
-                            onDelete={(id) => setBlocks(p => p.filter(b => b.id !== id))}
-                            onUpdate={(id, d) => setBlocks(p => p.map(b => b.id === id ? { ...b, ...d } : b))}
-                        />
+                        <div key={block.id} data-id={block.id}>
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                                className="h-full w-full"
+                            >
+                                <Block
+                                    data={block}
+                                    isEditMode={isEditMode}
+                                    isDebugMode={isDebugMode}
+                                    isDimmed={!!(filter && !block.category.startsWith(filter))}
+                                    onDelete={(id) => setBlocks(p => p.filter(b => b.id !== id))}
+                                    onUpdate={(id, d) => setBlocks(p => p.map(b => b.id === id ? { ...b, ...d } : b))}
+                                />
+                            </motion.div>
+                        </div>
                     ))}
                 </GridEngine>
             </main>

@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { motion } from 'framer-motion';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -39,58 +40,68 @@ export const Navbar = ({
                     </span>
 
                     <div className="flex items-center gap-2">
-                        <button
+                        <motion.button
                             onClick={() => onFilterChange(null)}
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
                             className={cn(
                                 "px-4 py-1.5 rounded-full text-[11px] font-black uppercase tracking-widest transition-all",
                                 !activeFilter
-                                    ? "bg-black text-white shadow-md scale-105"
+                                    ? "bg-black text-white shadow-md shadow-black/20"
                                     : "text-black/30 hover:text-black hover:bg-black/5"
                             )}
                         >
                             All
-                        </button>
-                        {categories.map(cat => (
-                            <button
+                        </motion.button>
+                        {categories.map((cat, idx) => (
+                            <motion.button
                                 key={cat}
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: idx * 0.05 }}
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
                                 onClick={() => onFilterChange(cat === activeFilter ? null : cat)}
                                 className={cn(
                                     "px-4 py-1.5 rounded-full text-[11px] font-black uppercase tracking-widest transition-all",
                                     cat === activeFilter
-                                        ? "bg-black text-white shadow-md scale-105"
+                                        ? "bg-black text-white shadow-md shadow-black/20"
                                         : "text-black/30 hover:text-black hover:bg-black/5"
                                 )}
                             >
                                 {cat}
-                            </button>
+                            </motion.button>
                         ))}
                     </div>
                 </div>
 
                 {/* Right Section: Socials */}
                 <div className="flex items-center gap-6 pr-2">
-                    <a
+                    <motion.a
                         href="https://github.com"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-[11px] font-black uppercase tracking-widest text-black/30 hover:text-black transition-all hover:translate-y-[-2px]"
+                        whileHover={{ y: -2, color: '#000' }}
+                        className="text-[11px] font-black uppercase tracking-widest text-black/30 transition-colors"
                     >
                         GitHub
-                    </a>
-                    <a
+                    </motion.a>
+                    <motion.a
                         href="https://twitter.com"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-[11px] font-black uppercase tracking-widest text-black/30 hover:text-black transition-all hover:translate-y-[-2px]"
+                        whileHover={{ y: -2, color: '#000' }}
+                        className="text-[11px] font-black uppercase tracking-widest text-black/30 transition-colors"
                     >
                         Twitter
-                    </a>
-                    <a
+                    </motion.a>
+                    <motion.a
                         href="#"
-                        className="text-[11px] font-black uppercase tracking-widest text-black/30 hover:text-black transition-all hover:translate-y-[-2px]"
+                        whileHover={{ y: -2, color: '#000' }}
+                        className="text-[11px] font-black uppercase tracking-widest text-black/30 transition-colors"
                     >
                         CV
-                    </a>
+                    </motion.a>
                 </div>
             </nav>
         </div>

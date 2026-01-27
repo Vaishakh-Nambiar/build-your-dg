@@ -46,7 +46,9 @@ export const Controls = ({
         )}>
             {/* Left: Reset */}
             <div className="flex items-center gap-4 pointer-events-auto">
-                <button
+                <motion.button
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
                     onClick={onResetGarden}
                     className="group relative flex h-14 w-14 items-center justify-center rounded-full bg-white text-gray-400 shadow-xl transition-all hover:bg-red-50 hover:text-red-500 border border-black/5"
                     title="Reset Layout"
@@ -55,10 +57,12 @@ export const Controls = ({
                     <span className="absolute left-16 whitespace-nowrap bg-black text-white px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity">
                         Reset Layout
                     </span>
-                </button>
+                </motion.button>
 
                 {/* Debug Button */}
-                <button
+                <motion.button
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
                     onClick={() => setIsDebugMode(!isDebugMode)}
                     className={cn(
                         "group relative flex h-14 w-14 items-center justify-center rounded-full shadow-xl transition-all border border-black/5",
@@ -70,7 +74,7 @@ export const Controls = ({
                     <span className="absolute left-16 whitespace-nowrap bg-black text-white px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity">
                         Debug Mode
                     </span>
-                </button>
+                </motion.button>
             </div>
 
             {/* Center: Add Block (Visible only in Edit Mode) */}
@@ -101,15 +105,19 @@ export const Controls = ({
                         </motion.div>
                     )}
                 </AnimatePresence>
-                <button
+                <motion.button
+                    whileHover={{ scale: 1.1, rotate: showAddMenu ? 45 : 0 }}
+                    whileTap={{ scale: 0.9 }}
                     onClick={() => setShowAddMenu(!showAddMenu)}
                     className={cn(
-                        "flex h-16 w-16 items-center justify-center rounded-full shadow-2xl transition-all border border-black/5 bg-black text-white hover:scale-105 active:scale-95",
-                        showAddMenu && "rotate-45 bg-red-500"
+                        "flex h-16 w-16 items-center justify-center rounded-full shadow-2xl transition-all border border-black/5 bg-black text-white",
+                        showAddMenu && "bg-red-500"
                     )}
                 >
-                    <Plus size={32} />
-                </button>
+                    <motion.div animate={{ rotate: showAddMenu ? 45 : 0 }}>
+                        <Plus size={32} />
+                    </motion.div>
+                </motion.button>
             </div>
 
             {/* Right: Grid, Edit, and Padding Control */}
@@ -134,17 +142,21 @@ export const Controls = ({
                     </button>
                 </div>
 
-                <button
+                <motion.button
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
                     onClick={() => setShowGrid(!showGrid)}
                     className={cn(
                         "flex h-14 w-14 items-center justify-center rounded-full shadow-xl transition-all border border-black/5",
-                        showGrid ? 'bg-black text-white scale-110 shadow-black/20' : 'bg-white text-gray-400 hover:text-black'
+                        showGrid ? 'bg-black text-white shadow-black/20' : 'bg-white text-gray-400 hover:text-black'
                     )}
                     title="Toggle Layout Grid"
                 >
                     <Grid size={22} />
-                </button>
-                <button
+                </motion.button>
+                <motion.button
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
                     onClick={() => setIsEditMode(!isEditMode)}
                     className={cn(
                         "flex h-14 w-14 items-center justify-center rounded-full shadow-xl transition-all border border-black/5",
@@ -153,7 +165,7 @@ export const Controls = ({
                     title={isEditMode ? "Save Layout" : "Edit Layout"}
                 >
                     {isEditMode ? <Check size={22} /> : <Settings2 size={22} />}
-                </button>
+                </motion.button>
             </div>
         </div>
     );

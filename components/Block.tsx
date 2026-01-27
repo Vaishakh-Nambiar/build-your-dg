@@ -70,24 +70,18 @@ export const Block = React.forwardRef<HTMLDivElement, BlockProps>(({
     };
 
     const getContainerClasses = () => {
-        const base = "group relative h-full w-full overflow-hidden";
-        const visualTransitions = "transition-[background-color,border-color,opacity,box-shadow,transform] duration-500 ease-[cubic-bezier(0.23,1,0.32,1)]";
-
-        // Disable ALL transitions during edit mode to prevent lag during drag/resize
-        const transitionClass = isEditMode ? "" : visualTransitions;
-
+        const base = "group relative h-full w-full overflow-hidden transition-[background-color,border-color,opacity,box-shadow,transform] duration-700 ease-[cubic-bezier(0.23,1,0.32,1)]";
         const border = isEditMode ? "border-2 border-dashed border-black/20" : "border border-black/[0.06] hover:shadow-2xl hover:shadow-black/5";
 
         if (data.type === 'thought') {
             return cn(
                 base,
-                transitionClass,
                 "shadow-lg rotate-1 hover:rotate-0",
                 !isEditMode && "border-none",
                 isDebugMode && "ring-2 ring-red-500 ring-inset"
             );
         }
-        return cn(base, transitionClass, "rounded-[24px] bg-white shadow-sm", border, isDebugMode && "ring-2 ring-red-500 ring-inset");
+        return cn(base, "rounded-[24px] bg-white shadow-sm", border, isDebugMode && "ring-2 ring-red-500 ring-inset");
     };
 
     const combinedStyle: React.CSSProperties = {
