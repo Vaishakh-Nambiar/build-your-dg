@@ -83,7 +83,7 @@ export const Block = React.forwardRef<HTMLDivElement, BlockProps>(({
         if (data.type === 'thought') {
             return cn(base, "shadow-sm rotate-1 hover:rotate-0 transition-transform bg-yellow-50", !isEditMode && "border-none");
         }
-        return cn(base, "rounded-xl border bg-white shadow-sm", border);
+        return cn(base, "rounded-2xl border bg-white shadow-sm", border);
     };
 
     // Combine passed style (positioning from RGL) with local style based on data

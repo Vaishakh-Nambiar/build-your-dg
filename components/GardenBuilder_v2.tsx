@@ -28,7 +28,12 @@ function useSize() {
     useEffect(() => {
         if (!ref.current) return;
         const observer = new ResizeObserver(([entry]) => {
-            setWidth(entry.contentRect.width);
+            const newWidth = entry.contentRect.width;
+            console.log('🔍 [GRID DEBUG] Container ResizeObserver triggered:');
+            console.log('  📏 Container Width:', newWidth, 'px');
+            console.log('  📐 Column Width (with 12 cols, 12px margin):', (newWidth - (11 * 12)) / 12, 'px');
+            console.log('  🎯 Max X position for column 12:', 11, '(0-indexed)');
+            setWidth(newWidth);
         });
         observer.observe(ref.current);
         return () => observer.disconnect();
@@ -77,9 +82,12 @@ export default function GardenBuilder() {
     }, []);
 
     const handleReset = () => {
-        if (window.confirm("Reset?")) {
+        if (window.confirm("Are you sure you want to reset your garden? This will clear all blocks and revert to the initial seed data.")) {
             localStorage.removeItem('garden-blocks');
-            window.location.reload();
+            localStorage.removeItem('garden-name');
+            localStorage.removeItem('garden-new-user');
+            setBlocks(INITIAL_BLOCKS);
+            setGardenName('My Garden');
         }
     };
 
@@ -99,12 +107,38 @@ export default function GardenBuilder() {
     };
 
     const onLayoutChange = (l: any) => {
+        console.log('🔄 [LAYOUT CHANGE] Grid layout updated:');
+        l.forEach((item: any) => {
+            const block = blocks.find(b => b.id === item.i);
+            console.log(`  📦 Block "${block?.title || item.i}":`, {
+                x: item.x,
+                y: item.y,
+                w: item.w,
+                h: item.h,
+                rightEdge: item.x + item.w,
+                reachesColumn12: (item.x + item.w) === 12 ? '✅ YES' : '❌ NO'
+            });
+        });
         const updated = blocks.map(b => {
             const item = l.find((li: any) => li.i === b.id);
             return item ? { ...b, x: item.x, y: item.y, w: item.w, h: item.h } : b;
         });
         setBlocks(updated);
     };
+
+    useEffect(() => {
+        if (isMount) {
+            console.log('🚀 [GRID DEBUG] Garden Builder Mounted');
+            console.log('  📊 Total Blocks:', blocks.length);
+            console.log('  📏 Container Width:', width, 'px');
+            console.log('  🎛️ Grid Config:', {
+                cols: 12,
+                rowHeight: ROW_HEIGHT,
+                margin: [12, 12],
+                containerPadding: [0, 0]
+            });
+        }
+    }, [isMount, width]);
 
     if (!isMount) return null;
 
@@ -114,10 +148,20 @@ export default function GardenBuilder() {
                 {isNewUser && <Onboarding onComplete={(d) => { setGardenName(d.name); setIsNewUser(false); }} />}
             </AnimatePresence>
 
-            <nav className="fixed top-6 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-4 rounded-full bg-white/80 px-6 py-2 shadow-lg backdrop-blur-xl border border-black/5">
+            <nav className="fixed top-6 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-4 rounded-full bg-white/80 px-6 py-3 shadow-xl backdrop-blur-md border border-black/5">
                 <span className="font-serif-display text-lg font-bold italic">{gardenName}</span>
                 <div className="h-6 w-px bg-black/10 mx-2" />
-                <button onClick={() => setFilter(null)} className={cn("px-3 py-1 rounded-full text-[10px] font-bold uppercase", !filter ? "bg-black text-white" : "text-gray-400")}>All</button>
+                <button onClick={() => setFilter(null)} className={cn("px-3 py-1 rounded-full text-[10px] font-bold uppercase transition-all", !filter ? "bg-black text-white" : "text-gray-400 hover:text-black")}>All</button>
+                <div className="h-6 w-px bg-black/10 mx-2" />
+                <a href="https://github.com" target="_blank" rel="noopener noreferrer" className="p-2 rounded-full hover:bg-black/5 transition-colors" title="GitHub">
+                    <Github size={18} className="text-black/60" />
+                </a>
+                <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" className="p-2 rounded-full hover:bg-black/5 transition-colors" title="Twitter">
+                    <Twitter size={18} className="text-black/60" />
+                </a>
+                <a href="/cv.pdf" target="_blank" rel="noopener noreferrer" className="p-2 rounded-full hover:bg-black/5 transition-colors" title="CV">
+                    <FileText size={18} className="text-black/60" />
+                </a>
             </nav>
 
             <header className="mb-12 mt-20">
@@ -129,7 +173,10 @@ export default function GardenBuilder() {
                     <div className="absolute inset-0 pointer-events-none z-10">
                         <div className="absolute top-[-30px] left-0 right-0 grid grid-cols-12 gap-3">
                             {Array.from({ length: 12 }).map((_, i) => (
-                                <div key={i} className="text-[11px] font-bold text-black/40 text-center">{i + 1}</div>
+                                <div key={i} className={cn(
+                                    "text-[11px] font-bold text-center px-2 py-1 rounded",
+                                    i === 11 ? "bg-yellow-100/80 text-yellow-800" : "text-black/40"
+                                )}>{i + 1}</div>
                             ))}
                         </div>
                         <div className="absolute top-0 left-[-40px] bottom-0 flex flex-col">
@@ -137,9 +184,12 @@ export default function GardenBuilder() {
                                 <div key={i} className="flex items-center justify-center text-[11px] font-bold text-black/40" style={{ height: ROW_HEIGHT + 12 }}>{i + 1}</div>
                             ))}
                         </div>
-                        <div className="h-full w-full grid grid-cols-12 gap-3 opacity-20">
+                        <div className="h-full w-full grid grid-cols-12 gap-3">
                             {Array.from({ length: 12 }).map((_, i) => (
-                                <div key={i} className={cn("h-full border-x border-dashed border-black", i === 11 ? "bg-yellow-300/30" : "bg-black/[0.01]")} />
+                                <div key={i} className={cn(
+                                    "h-full border-x border-dashed",
+                                    i === 11 ? "bg-yellow-100/50 border-yellow-400" : "bg-black/[0.02] border-black/10"
+                                )} />
                             ))}
                         </div>
                     </div>
@@ -154,11 +204,14 @@ export default function GardenBuilder() {
                         xs: blocks.map(b => ({ i: b.id, x: b.x, y: b.y, w: b.w, h: b.h })),
                         xxs: blocks.map(b => ({ i: b.id, x: b.x, y: b.y, w: b.w, h: b.h }))
                     }}
-                    cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
+                    breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
+                    cols={{ lg: 12, md: 12, sm: 12, xs: 12, xxs: 12 }}
                     rowHeight={ROW_HEIGHT}
+                    containerPadding={[0, 0]}
                     margin={[12, 12]}
                     isDraggable={isEditMode}
                     isResizable={isEditMode}
+                    draggableHandle=".drag-handle"
                     onLayoutChange={onLayoutChange}
                 >
                     {blocks.map(block => (
@@ -200,8 +253,20 @@ export default function GardenBuilder() {
                 .react-grid-placeholder {
                     background: rgba(0,0,0,0.05) !important;
                     border: 2px dashed rgba(0,0,0,0.5) !important;
-                    border-radius: 12px !important;
+                    border-radius: 16px !important;
                     opacity: 1 !important;
+                }
+                .react-grid-item {
+                    transition: all 200ms ease;
+                    transition-property: left, top, width, height;
+                }
+                .react-grid-item.react-draggable-dragging {
+                    transition: none;
+                    z-index: 100;
+                }
+                .react-grid-item.resizing {
+                    transition: none;
+                    z-index: 100;
                 }
             `}</style>
         </div>
