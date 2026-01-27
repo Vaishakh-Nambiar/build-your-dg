@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowUpRight, Trash2, X, Quote, GripVertical } from 'lucide-react';
+import { ArrowUpRight, Trash2, X, Quote, GripVertical, Edit3, Volume2, VolumeX, Repeat, Check } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -8,7 +8,7 @@ function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
 }
 
-export type BlockType = 'image' | 'text' | 'thought' | 'quote' | 'project' | 'status';
+export type BlockType = 'image' | 'text' | 'thought' | 'quote' | 'project' | 'status' | 'video';
 
 export interface BlockData {
     id: string;
@@ -25,6 +25,9 @@ export interface BlockData {
     objectFit?: 'cover' | 'contain';
     color?: string;
     isPolaroid?: boolean;
+    videoUrl?: string;
+    isLooping?: boolean;
+    isMuted?: boolean;
     x: number;
     y: number;
     w: number;
@@ -100,10 +103,6 @@ export const Block = React.forwardRef<HTMLDivElement, BlockProps>(({
                 ...style,
                 backgroundColor: data.color,
             }}
-            onClick={(e) => {
-                if (isEditMode) setShowSettings(true);
-                props.onClick?.(e);
-            }}
             {...props}
         >
             {data.type === 'quote' && (
@@ -122,139 +121,230 @@ export const Block = React.forwardRef<HTMLDivElement, BlockProps>(({
                 </div>
             )}
 
-            {/* SETTINGS OVERLAY */}
+            {/* HOVER CONTROLS - EDIT & DELETE */}
+            {isEditMode && (
+                <div className="absolute top-3 right-3 z-30 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setShowSettings(true);
+                        }}
+                        className="flex h-8 w-8 items-center justify-center rounded-full bg-white/90 backdrop-blur-sm hover:bg-blue-50 hover:text-blue-600 transition-all shadow-lg border border-black/10"
+                        title="Edit"
+                    >
+                        <Edit3 size={14} />
+                    </button>
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if (window.confirm('Delete this block?')) {
+                                onDelete(data.id);
+                            }
+                        }}
+                        className="flex h-8 w-8 items-center justify-center rounded-full bg-white/90 backdrop-blur-sm hover:bg-red-50 hover:text-red-600 transition-all shadow-lg border border-black/10"
+                        title="Delete"
+                    >
+                        <Trash2 size={14} />
+                    </button>
+                </div>
+            )}
+
+            {/* SETTINGS OVERLAY - FIXED POSITION FOR SMALL TILES */}
             <AnimatePresence>
                 {showSettings && isEditMode && (
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.95 }}
-                        className="absolute inset-0 z-[60] flex flex-col bg-white rounded-2xl overflow-y-auto cursor-default"
-                        onClick={(e) => e.stopPropagation()}
-                        onMouseDown={(e) => e.stopPropagation()}
-                    >
-                        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-100 bg-white/80 p-4 backdrop-blur-md">
-                            <span className="font-serif-display text-lg font-bold italic">Edit Block</span>
-                            <button onClick={() => setShowSettings(false)} className="rounded-full bg-gray-100 p-2 hover:bg-gray-200 transition-colors">
-                                <X size={16} />
-                            </button>
-                        </div>
+                    <>
+                        {/* Backdrop */}
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[200]"
+                            onClick={() => setShowSettings(false)}
+                        />
 
-                        <div className="flex-1 space-y-6 p-4 text-left">
-                            <div className="space-y-2">
-                                <label className="text-[10px] uppercase tracking-widest text-gray-400">Type</label>
-                                <div className="flex flex-wrap gap-2">
-                                    {(['text', 'image', 'quote', 'thought', 'project', 'status'] as BlockType[]).map(t => (
-                                        <button
-                                            key={t}
-                                            onClick={() => onUpdate(data.id, { type: t })}
-                                            className={cn(
-                                                "px-3 py-1 rounded-md text-xs border capitalize transition-colors",
-                                                data.type === t ? "bg-black text-white border-black" : "bg-white hover:bg-gray-50"
-                                            )}
-                                        >
-                                            {t}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-[10px] uppercase tracking-widest text-gray-400">Color</label>
-                                <div className="flex flex-wrap gap-2">
-                                    {PASTEL_COLORS.map(c => (
-                                        <button
-                                            key={c}
-                                            onClick={() => onUpdate(data.id, { color: c })}
-                                            className={cn(
-                                                "w-6 h-6 rounded-full border transition-all",
-                                                data.color === c ? "border-black ring-2 ring-black ring-offset-2" : "border-gray-200 hover:scale-110"
-                                            )}
-                                            style={{ backgroundColor: c }}
-                                        />
-                                    ))}
-                                </div>
-                            </div>
-                            <div className="space-y-4">
-                                <input
-                                    type="text"
-                                    value={data.category}
-                                    onChange={(e) => onUpdate(data.id, { category: e.target.value })}
-                                    className="w-full rounded-lg border p-2 text-sm focus:ring-2 focus:ring-black focus:border-black transition-all"
-                                    placeholder="Category"
-                                />
-                                <input
-                                    type="text"
-                                    value={data.title || ''}
-                                    onChange={(e) => onUpdate(data.id, { title: e.target.value })}
-                                    className="w-full rounded-lg border p-2 text-sm font-bold focus:ring-2 focus:ring-black focus:border-black transition-all"
-                                    placeholder="Title"
-                                />
-                                <textarea
-                                    value={data.content || ''}
-                                    onChange={(e) => onUpdate(data.id, { content: e.target.value })}
-                                    rows={3}
-                                    className="w-full rounded-lg border p-2 text-sm focus:ring-2 focus:ring-black focus:border-black transition-all"
-                                    placeholder="Content"
-                                />
-                                {data.type === 'quote' && (
-                                    <input
-                                        type="text"
-                                        value={data.author || ''}
-                                        onChange={(e) => onUpdate(data.id, { author: e.target.value })}
-                                        className="w-full rounded-lg border p-2 text-sm focus:ring-2 focus:ring-black focus:border-black transition-all"
-                                        placeholder="Author Name"
-                                    />
-                                )}
-                                {data.type === 'image' && (
-                                    <>
-                                        <input
-                                            type="text"
-                                            value={data.imageUrl || ''}
-                                            onChange={(e) => onUpdate(data.id, { imageUrl: e.target.value })}
-                                            className="w-full rounded-lg border p-2 text-xs focus:ring-2 focus:ring-black focus:border-black transition-all"
-                                            placeholder="Image URL"
-                                        />
-                                        <input
-                                            type="text"
-                                            value={data.imageTag || ''}
-                                            onChange={(e) => onUpdate(data.id, { imageTag: e.target.value })}
-                                            className="w-full rounded-lg border p-2 text-xs focus:ring-2 focus:ring-black focus:border-black transition-all"
-                                            placeholder="Image Tag (optional)"
-                                        />
-                                        <div className="flex items-center gap-4">
-                                            <label className="flex items-center gap-2 text-xs cursor-pointer">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={data.objectFit === 'contain'}
-                                                    onChange={() => onUpdate(data.id, { objectFit: data.objectFit === 'contain' ? 'cover' : 'contain' })}
-                                                    className="rounded"
-                                                />
-                                                Contain
-                                            </label>
-                                            <label className="flex items-center gap-2 text-xs cursor-pointer">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={data.isPolaroid || false}
-                                                    onChange={() => onUpdate(data.id, { isPolaroid: !data.isPolaroid })}
-                                                    className="rounded"
-                                                />
-                                                Polaroid
-                                            </label>
-                                        </div>
-                                    </>
-                                )}
-                            </div>
-                            <div className="pt-4 border-t border-gray-100">
-                                <button
-                                    onClick={() => onDelete(data.id)}
-                                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-red-50 p-3 text-sm font-medium text-red-600 hover:bg-red-100 transition-colors"
-                                >
-                                    <Trash2 size={16} />
-                                    Delete Block
+                        {/* Modal */}
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                            className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[201] w-[90vw] max-w-md max-h-[80vh] flex flex-col bg-white rounded-2xl overflow-hidden shadow-2xl"
+                            onClick={(e) => e.stopPropagation()}
+                            onMouseDown={(e) => e.stopPropagation()}
+                        >
+                            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-100 bg-white/95 p-4 backdrop-blur-md">
+                                <span className="font-serif-display text-lg font-bold italic">Edit Block</span>
+                                <button onClick={() => setShowSettings(false)} className="rounded-full bg-gray-100 p-2 hover:bg-gray-200 transition-colors">
+                                    <X size={16} />
                                 </button>
                             </div>
-                        </div>
-                    </motion.div>
+
+                            <div className="flex-1 space-y-6 p-4 text-left overflow-y-auto">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] uppercase tracking-widest text-gray-400">Type</label>
+                                    <div className="flex flex-wrap gap-2">
+                                        {(['text', 'image', 'video', 'quote', 'thought', 'project', 'status'] as BlockType[]).map(t => (
+                                            <button
+                                                key={t}
+                                                onClick={() => onUpdate(data.id, { type: t })}
+                                                className={cn(
+                                                    "px-3 py-1 rounded-md text-xs border capitalize transition-colors",
+                                                    data.type === t ? "bg-black text-white border-black" : "bg-white hover:bg-gray-50"
+                                                )}
+                                            >
+                                                {t}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] uppercase tracking-widest text-gray-400">Color</label>
+                                    <div className="flex flex-wrap gap-2">
+                                        {PASTEL_COLORS.map(c => (
+                                            <button
+                                                key={c}
+                                                onClick={() => onUpdate(data.id, { color: c })}
+                                                className={cn(
+                                                    "w-6 h-6 rounded-full border transition-all",
+                                                    data.color === c ? "border-black ring-2 ring-black ring-offset-2" : "border-gray-200 hover:scale-110"
+                                                )}
+                                                style={{ backgroundColor: c }}
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className="space-y-4">
+                                    <input
+                                        type="text"
+                                        value={data.category}
+                                        onChange={(e) => onUpdate(data.id, { category: e.target.value })}
+                                        className="w-full rounded-lg border p-2 text-sm focus:ring-2 focus:ring-black focus:border-black transition-all"
+                                        placeholder="Category"
+                                    />
+                                    <input
+                                        type="text"
+                                        value={data.title || ''}
+                                        onChange={(e) => onUpdate(data.id, { title: e.target.value })}
+                                        className="w-full rounded-lg border p-2 text-sm font-bold focus:ring-2 focus:ring-black focus:border-black transition-all"
+                                        placeholder="Title"
+                                    />
+                                    <textarea
+                                        value={data.content || ''}
+                                        onChange={(e) => onUpdate(data.id, { content: e.target.value })}
+                                        rows={3}
+                                        className="w-full rounded-lg border p-2 text-sm focus:ring-2 focus:ring-black focus:border-black transition-all"
+                                        placeholder="Content"
+                                    />
+                                    <input
+                                        type="text"
+                                        value={data.link || ''}
+                                        onChange={(e) => onUpdate(data.id, { link: e.target.value })}
+                                        className="w-full rounded-lg border p-2 text-sm focus:ring-2 focus:ring-black focus:border-black transition-all"
+                                        placeholder="Link URL (optional)"
+                                    />
+                                    {data.type === 'quote' && (
+                                        <input
+                                            type="text"
+                                            value={data.author || ''}
+                                            onChange={(e) => onUpdate(data.id, { author: e.target.value })}
+                                            className="w-full rounded-lg border p-2 text-sm focus:ring-2 focus:ring-black focus:border-black transition-all"
+                                            placeholder="Author Name"
+                                        />
+                                    )}
+                                    {data.type === 'image' && (
+                                        <>
+                                            <input
+                                                type="text"
+                                                value={data.imageUrl || ''}
+                                                onChange={(e) => onUpdate(data.id, { imageUrl: e.target.value })}
+                                                className="w-full rounded-lg border p-2 text-xs focus:ring-2 focus:ring-black focus:border-black transition-all"
+                                                placeholder="Image URL"
+                                            />
+                                            <input
+                                                type="text"
+                                                value={data.imageTag || ''}
+                                                onChange={(e) => onUpdate(data.id, { imageTag: e.target.value })}
+                                                className="w-full rounded-lg border p-2 text-xs focus:ring-2 focus:ring-black focus:border-black transition-all"
+                                                placeholder="Image Tag (optional)"
+                                            />
+                                            <div className="flex items-center gap-4">
+                                                <label className="flex items-center gap-2 text-xs cursor-pointer">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={data.objectFit === 'contain'}
+                                                        onChange={() => onUpdate(data.id, { objectFit: data.objectFit === 'contain' ? 'cover' : 'contain' })}
+                                                        className="rounded"
+                                                    />
+                                                    Contain
+                                                </label>
+                                                <label className="flex items-center gap-2 text-xs cursor-pointer">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={data.isPolaroid || false}
+                                                        onChange={() => onUpdate(data.id, { isPolaroid: !data.isPolaroid })}
+                                                        className="rounded"
+                                                    />
+                                                    Polaroid
+                                                </label>
+                                            </div>
+                                        </>
+                                    )}
+                                    {data.type === 'video' && (
+                                        <>
+                                            <input
+                                                type="text"
+                                                value={data.videoUrl || ''}
+                                                onChange={(e) => onUpdate(data.id, { videoUrl: e.target.value })}
+                                                className="w-full rounded-lg border p-2 text-xs focus:ring-2 focus:ring-black focus:border-black transition-all"
+                                                placeholder="Video/GIF URL (MP4, WebM, GIF)"
+                                            />
+                                            <div className="flex items-center gap-4">
+                                                <label className="flex items-center gap-2 text-xs cursor-pointer">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={data.isLooping || false}
+                                                        onChange={() => onUpdate(data.id, { isLooping: !data.isLooping })}
+                                                        className="rounded"
+                                                    />
+                                                    Loop
+                                                </label>
+                                                <label className="flex items-center gap-2 text-xs cursor-pointer">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={data.isMuted !== false}
+                                                        onChange={() => onUpdate(data.id, { isMuted: data.isMuted === false ? true : false })}
+                                                        className="rounded"
+                                                    />
+                                                    Muted
+                                                </label>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Footer with Save and Delete */}
+                            <div className="sticky bottom-0 border-t border-gray-100 bg-white/95 p-4 backdrop-blur-md flex gap-3">
+                                <button
+                                    onClick={() => setShowSettings(false)}
+                                    className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-black p-3 text-sm font-medium text-white hover:bg-gray-800 transition-colors"
+                                >
+                                    <Check size={16} />
+                                    Save Changes
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        if (window.confirm('Delete this block?')) {
+                                            onDelete(data.id);
+                                            setShowSettings(false);
+                                        }
+                                    }}
+                                    className="flex items-center justify-center gap-2 rounded-lg bg-red-50 px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-100 transition-colors"
+                                >
+                                    <Trash2 size={16} />
+                                </button>
+                            </div>
+                        </motion.div>
+                    </>
                 )}
             </AnimatePresence>
 
@@ -270,7 +360,7 @@ export const Block = React.forwardRef<HTMLDivElement, BlockProps>(({
                     >
                         {data.category}
                     </button>
-                    {!data.isPolaroid && <ArrowUpRight className="h-4 w-4 text-black/20 group-hover:text-black/40 transition-colors" />}
+                    {!data.isPolaroid && data.link && <ArrowUpRight className="h-4 w-4 text-black/20 group-hover:text-black/40 transition-colors" />}
                 </div>
                 <div className="flex-1 relative flex items-center justify-center w-full">
                     {/* TEXT BLOCK */}
@@ -364,6 +454,50 @@ export const Block = React.forwardRef<HTMLDivElement, BlockProps>(({
                             {!data.isPolaroid && data.imageTag && (
                                 <div className="absolute bottom-4 left-4 rounded-md bg-black/30 px-2 py-1 text-[10px] font-medium text-white backdrop-blur-md">
                                     {data.imageTag}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* VIDEO BLOCK - WITH CONTROLS */}
+                    {data.type === 'video' && data.videoUrl && (
+                        <div className="absolute inset-0 z-0 overflow-hidden rounded-lg bg-black">
+                            <video
+                                src={data.videoUrl}
+                                className="w-full h-full object-cover"
+                                loop={data.isLooping !== false}
+                                muted={data.isMuted !== false}
+                                autoPlay
+                                playsInline
+                            />
+                            {!isEditMode && (
+                                <div className="absolute bottom-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onUpdate(data.id, { isLooping: !data.isLooping });
+                                        }}
+                                        className={cn(
+                                            "flex h-8 w-8 items-center justify-center rounded-full backdrop-blur-md transition-all shadow-lg border pointer-events-auto",
+                                            data.isLooping !== false ? "bg-white/90 text-black" : "bg-black/50 text-white"
+                                        )}
+                                        title={data.isLooping !== false ? "Loop On" : "Loop Off"}
+                                    >
+                                        <Repeat size={14} />
+                                    </button>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onUpdate(data.id, { isMuted: !data.isMuted });
+                                        }}
+                                        className={cn(
+                                            "flex h-8 w-8 items-center justify-center rounded-full backdrop-blur-md transition-all shadow-lg border pointer-events-auto",
+                                            data.isMuted !== false ? "bg-black/50 text-white" : "bg-white/90 text-black"
+                                        )}
+                                        title={data.isMuted !== false ? "Unmute" : "Mute"}
+                                    >
+                                        {data.isMuted !== false ? <VolumeX size={14} /> : <Volume2 size={14} />}
+                                    </button>
                                 </div>
                             )}
                         </div>

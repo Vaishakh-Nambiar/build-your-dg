@@ -14,7 +14,7 @@ function cn(...inputs: ClassValue[]) {
 const RGL = require('react-grid-layout');
 const ReactGridLayout = typeof RGL === 'function' ? RGL : (RGL.default || RGL);
 
-export type BlockType = 'text' | 'image' | 'quote' | 'thought' | 'project' | 'status';
+export type BlockType = 'text' | 'image' | 'video' | 'quote' | 'thought' | 'project' | 'status';
 
 interface Layout {
     i: string;

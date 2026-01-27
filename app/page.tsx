@@ -1,4 +1,4 @@
-import GardenBuilder from "@/components/GardenBuilder_v2";
+import GardenBuilder from "@/components/GardenBuilder";
 
 export default function Home() {
   return (

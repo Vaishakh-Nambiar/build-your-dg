@@ -10,7 +10,7 @@ function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
 }
 
-export type BlockType = 'text' | 'image' | 'quote' | 'thought' | 'project' | 'status';
+export type BlockType = 'text' | 'image' | 'video' | 'quote' | 'thought' | 'project' | 'status';
 
 interface ControlsProps {
     isEditMode: boolean;
@@ -85,38 +85,48 @@ export const Controls = ({
                 <AnimatePresence>
                     {showAddMenu && (
                         <motion.div
-                            className="flex flex-col gap-1 rounded-3xl bg-white p-2 shadow-2xl border border-black/5 min-w-[160px]"
-                            initial={{ opacity: 0, y: 10, scale: 0.9 }}
+                            className="absolute bottom-[calc(100%+12px)] left-1/2 -translate-x-1/2 flex flex-col gap-1 rounded-2xl bg-white p-3 shadow-2xl border border-black/5 min-w-[180px]"
+                            initial={{ opacity: 0, y: 10, scale: 0.95 }}
                             animate={{ opacity: 1, y: 0, scale: 1 }}
-                            exit={{ opacity: 0, y: 10, scale: 0.9 }}
+                            exit={{ opacity: 0, y: 10, scale: 0.95 }}
                         >
-                            {(['text', 'image', 'quote', 'thought', 'project'] as BlockType[]).map(type => (
+                            {[
+                                { type: 'thought' as BlockType, size: '2×2', desc: 'Sticky note' },
+                                { type: 'text' as BlockType, size: '3×2', desc: 'Text card' },
+                                { type: 'quote' as BlockType, size: '3×3', desc: 'Quote block' },
+                                { type: 'image' as BlockType, size: '3×3', desc: 'Photo' },
+                                { type: 'video' as BlockType, size: '4×3', desc: 'Video/GIF' },
+                                { type: 'project' as BlockType, size: '4×4', desc: 'Showcase' },
+                                { type: 'status' as BlockType, size: '2×1', desc: 'Status banner' },
+                            ].map(({ type, size, desc }) => (
                                 <button
                                     key={type}
                                     onClick={() => {
                                         onAddBlock(type);
                                         setShowAddMenu(false);
                                     }}
-                                    className="px-6 py-2.5 hover:bg-black hover:text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all text-left"
+                                    className="group flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-gray-50 rounded-xl text-xs font-semibold transition-all hover:scale-[1.02]"
                                 >
-                                    {type}
+                                    <div className="flex items-center gap-2">
+                                        <span className="uppercase tracking-wider text-black/80 group-hover:text-black">{type}</span>
+                                        <span className="text-[9px] text-gray-400">{desc}</span>
+                                    </div>
+                                    <span className="text-[10px] font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-500 group-hover:bg-black group-hover:text-white transition-colors">{size}</span>
                                 </button>
                             ))}
                         </motion.div>
                     )}
                 </AnimatePresence>
                 <motion.button
-                    whileHover={{ scale: 1.1, rotate: showAddMenu ? 45 : 0 }}
+                    whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
                     onClick={() => setShowAddMenu(!showAddMenu)}
                     className={cn(
                         "flex h-16 w-16 items-center justify-center rounded-full shadow-2xl transition-all border border-black/5 bg-black text-white",
-                        showAddMenu && "bg-red-500"
+                        showAddMenu && "rotate-45"
                     )}
                 >
-                    <motion.div animate={{ rotate: showAddMenu ? 45 : 0 }}>
-                        <Plus size={32} />
-                    </motion.div>
+                    <Plus size={32} />
                 </motion.button>
             </div>
 
