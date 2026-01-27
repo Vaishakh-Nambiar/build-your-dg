@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowUpRight, Trash2, X, Quote, GripVertical } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
@@ -25,24 +25,19 @@ export interface BlockData {
     objectFit?: 'cover' | 'contain';
     color?: string;
     isPolaroid?: boolean;
-    // RGL Layout Data (optional for BlockData but needed for parent mapping)
     x: number;
     y: number;
     w: number;
     h: number;
 }
 
-interface BlockProps {
+interface BlockProps extends React.HTMLAttributes<HTMLDivElement> {
     data: BlockData;
     isEditMode: boolean;
+    isDebugMode?: boolean;
+    isDimmed?: boolean;
     onDelete: (id: string) => void;
     onUpdate: (id: string, data: Partial<BlockData>) => void;
-    // RGL Props passed down
-    style?: React.CSSProperties;
-    className?: string;
-    onMouseDown?: React.MouseEventHandler;
-    onMouseUp?: React.MouseEventHandler;
-    onTouchEnd?: React.TouchEventHandler;
 }
 
 const PASTEL_COLORS = [
@@ -50,18 +45,16 @@ const PASTEL_COLORS = [
     '#cfbaf0', '#a3c4f3', '#90dbf4', '#8eecf5', '#98f5e1', '#b9fbc0'
 ];
 
-// Must forward ref for RGL? Actually RGL clones element and passes ref/style/etc.
-// Standard functional component should pass ...props to root.
 export const Block = React.forwardRef<HTMLDivElement, BlockProps>(({
     data,
     isEditMode,
+    isDebugMode = false,
+    isDimmed = false,
     onDelete,
     onUpdate,
     style,
     className,
-    onMouseDown,
-    onMouseUp,
-    onTouchEnd
+    ...props
 }, ref) => {
     const [showSettings, setShowSettings] = useState(false);
 
@@ -77,20 +70,28 @@ export const Block = React.forwardRef<HTMLDivElement, BlockProps>(({
     };
 
     const getContainerClasses = () => {
-        const base = "group relative h-full w-full overflow-hidden transition-all duration-300";
-        const border = isEditMode ? "border-dashed border-black/20" : "border-black/5 hover:shadow-md";
+        const base = "group relative h-full w-full overflow-hidden";
+        const visualTransitions = "transition-[background-color,border-color,opacity,box-shadow,transform] duration-500 ease-[cubic-bezier(0.23,1,0.32,1)]";
+
+        // Disable ALL transitions during edit mode to prevent lag during drag/resize
+        const transitionClass = isEditMode ? "" : visualTransitions;
+
+        const border = isEditMode ? "border-2 border-dashed border-black/20" : "border border-black/[0.06] hover:shadow-2xl hover:shadow-black/5";
 
         if (data.type === 'thought') {
-            return cn(base, "shadow-sm rotate-1 hover:rotate-0 transition-transform bg-yellow-50", !isEditMode && "border-none");
+            return cn(
+                base,
+                transitionClass,
+                "shadow-lg rotate-1 hover:rotate-0",
+                !isEditMode && "border-none",
+                isDebugMode && "ring-2 ring-red-500 ring-inset"
+            );
         }
-        return cn(base, "rounded-2xl border bg-white shadow-sm", border);
+        return cn(base, transitionClass, "rounded-[24px] bg-white shadow-sm", border, isDebugMode && "ring-2 ring-red-500 ring-inset");
     };
 
-    // Combine passed style (positioning from RGL) with local style based on data
     const combinedStyle: React.CSSProperties = {
-        ...style,
         backgroundColor: data.color,
-        // Ensure z-index is handled by RGL usually, but we can boost it if active
     };
 
     return (
@@ -98,16 +99,18 @@ export const Block = React.forwardRef<HTMLDivElement, BlockProps>(({
             ref={ref}
             className={cn(
                 getContainerClasses(),
-                isEditMode && "cursor-pointer", // RGL handles cursor usually, but good fallback
+                isDimmed && "opacity-20 grayscale pointer-events-none",
                 className
             )}
-            style={combinedStyle}
-            onMouseDown={onMouseDown}
-            onMouseUp={onMouseUp}
-            onTouchEnd={onTouchEnd}
-            onClick={() => {
-                if (isEditMode) setShowSettings(true);
+            style={{
+                ...style,
+                backgroundColor: data.color,
             }}
+            onClick={(e) => {
+                if (isEditMode) setShowSettings(true);
+                props.onClick?.(e);
+            }}
+            {...props}
         >
             {data.type === 'quote' && (
                 <div className="absolute inset-0 pointer-events-none select-none flex items-center justify-center opacity-[0.03]">
@@ -115,13 +118,13 @@ export const Block = React.forwardRef<HTMLDivElement, BlockProps>(({
                 </div>
             )}
 
-            {/* MOVEMENT HANDLE - RGL uses '.drag-handle' class selector if configured */}
+            {/* GRIP HANDLE - 6-DOT MOVEMENT CONTROL */}
             {isEditMode && (
                 <div
-                    className="drag-handle absolute top-2 left-1/2 -translate-x-1/2 z-30 flex h-8 w-12 cursor-grab touch-none items-center justify-center rounded-full bg-white/50 backdrop-blur-sm opacity-0 hover:opacity-100 group-hover:opacity-100 transition-opacity hover:bg-white active:cursor-grabbing shadow-sm border border-black/5"
+                    className="drag-handle absolute top-3 left-1/2 -translate-x-1/2 z-30 flex h-8 w-12 cursor-grab touch-none items-center justify-center rounded-full bg-white/90 backdrop-blur-sm opacity-0 hover:opacity-100 group-hover:opacity-100 transition-opacity hover:bg-white active:cursor-grabbing shadow-lg border border-black/10"
                     onClick={(e) => e.stopPropagation()}
                 >
-                    <GripVertical size={16} className="text-black/50" />
+                    <GripVertical size={18} className="text-black/60" />
                 </div>
             )}
 
@@ -132,13 +135,15 @@ export const Block = React.forwardRef<HTMLDivElement, BlockProps>(({
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.95 }}
-                        className="absolute inset-0 z-[60] flex flex-col bg-white overflow-y-auto cursor-default"
+                        className="absolute inset-0 z-[60] flex flex-col bg-white rounded-2xl overflow-y-auto cursor-default"
                         onClick={(e) => e.stopPropagation()}
-                        onMouseDown={(e) => e.stopPropagation()} // Prevent drag start on settings
+                        onMouseDown={(e) => e.stopPropagation()}
                     >
                         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-100 bg-white/80 p-4 backdrop-blur-md">
                             <span className="font-serif-display text-lg font-bold italic">Edit Block</span>
-                            <button onClick={() => setShowSettings(false)} className="rounded-full bg-gray-100 p-2 hover:bg-gray-200"><X size={16} /></button>
+                            <button onClick={() => setShowSettings(false)} className="rounded-full bg-gray-100 p-2 hover:bg-gray-200 transition-colors">
+                                <X size={16} />
+                            </button>
                         </div>
 
                         <div className="flex-1 space-y-6 p-4 text-left">
@@ -146,7 +151,16 @@ export const Block = React.forwardRef<HTMLDivElement, BlockProps>(({
                                 <label className="text-[10px] uppercase tracking-widest text-gray-400">Type</label>
                                 <div className="flex flex-wrap gap-2">
                                     {(['text', 'image', 'quote', 'thought', 'project', 'status'] as BlockType[]).map(t => (
-                                        <button key={t} onClick={() => onUpdate(data.id, { type: t })} className={cn("px-3 py-1 rounded-md text-xs border capitalize", data.type === t ? "bg-black text-white border-black" : "bg-white hover:bg-gray-50")}>{t}</button>
+                                        <button
+                                            key={t}
+                                            onClick={() => onUpdate(data.id, { type: t })}
+                                            className={cn(
+                                                "px-3 py-1 rounded-md text-xs border capitalize transition-colors",
+                                                data.type === t ? "bg-black text-white border-black" : "bg-white hover:bg-gray-50"
+                                            )}
+                                        >
+                                            {t}
+                                        </button>
                                     ))}
                                 </div>
                             </div>
@@ -154,27 +168,96 @@ export const Block = React.forwardRef<HTMLDivElement, BlockProps>(({
                                 <label className="text-[10px] uppercase tracking-widest text-gray-400">Color</label>
                                 <div className="flex flex-wrap gap-2">
                                     {PASTEL_COLORS.map(c => (
-                                        <button key={c} onClick={() => onUpdate(data.id, { color: c })} className={cn("w-6 h-6 rounded-full border", data.color === c ? "border-black ring-1 ring-black ring-offset-1" : "border-gray-200")} style={{ backgroundColor: c }} />
+                                        <button
+                                            key={c}
+                                            onClick={() => onUpdate(data.id, { color: c })}
+                                            className={cn(
+                                                "w-6 h-6 rounded-full border transition-all",
+                                                data.color === c ? "border-black ring-2 ring-black ring-offset-2" : "border-gray-200 hover:scale-110"
+                                            )}
+                                            style={{ backgroundColor: c }}
+                                        />
                                     ))}
                                 </div>
                             </div>
                             <div className="space-y-4">
-                                <input type="text" value={data.category} onChange={(e) => onUpdate(data.id, { category: e.target.value })} className="w-full rounded-lg border p-2 text-sm" placeholder="Category" />
-                                <input type="text" value={data.title || ''} onChange={(e) => onUpdate(data.id, { title: e.target.value })} className="w-full rounded-lg border p-2 text-sm font-bold" placeholder="Title" />
-                                <textarea value={data.content || ''} onChange={(e) => onUpdate(data.id, { content: e.target.value })} rows={3} className="w-full rounded-lg border p-2 text-sm" placeholder="Content" />
-                                {data.type === 'quote' && (<input type="text" value={data.author || ''} onChange={(e) => onUpdate(data.id, { author: e.target.value })} className="w-full rounded-lg border p-2 text-sm" placeholder="Author Name" />)}
+                                <input
+                                    type="text"
+                                    value={data.category}
+                                    onChange={(e) => onUpdate(data.id, { category: e.target.value })}
+                                    className="w-full rounded-lg border p-2 text-sm focus:ring-2 focus:ring-black focus:border-black transition-all"
+                                    placeholder="Category"
+                                />
+                                <input
+                                    type="text"
+                                    value={data.title || ''}
+                                    onChange={(e) => onUpdate(data.id, { title: e.target.value })}
+                                    className="w-full rounded-lg border p-2 text-sm font-bold focus:ring-2 focus:ring-black focus:border-black transition-all"
+                                    placeholder="Title"
+                                />
+                                <textarea
+                                    value={data.content || ''}
+                                    onChange={(e) => onUpdate(data.id, { content: e.target.value })}
+                                    rows={3}
+                                    className="w-full rounded-lg border p-2 text-sm focus:ring-2 focus:ring-black focus:border-black transition-all"
+                                    placeholder="Content"
+                                />
+                                {data.type === 'quote' && (
+                                    <input
+                                        type="text"
+                                        value={data.author || ''}
+                                        onChange={(e) => onUpdate(data.id, { author: e.target.value })}
+                                        className="w-full rounded-lg border p-2 text-sm focus:ring-2 focus:ring-black focus:border-black transition-all"
+                                        placeholder="Author Name"
+                                    />
+                                )}
                                 {data.type === 'image' && (
                                     <>
-                                        <input type="text" value={data.imageUrl || ''} onChange={(e) => onUpdate(data.id, { imageUrl: e.target.value })} className="w-full rounded-lg border p-2 text-xs" placeholder="Image URL" />
+                                        <input
+                                            type="text"
+                                            value={data.imageUrl || ''}
+                                            onChange={(e) => onUpdate(data.id, { imageUrl: e.target.value })}
+                                            className="w-full rounded-lg border p-2 text-xs focus:ring-2 focus:ring-black focus:border-black transition-all"
+                                            placeholder="Image URL"
+                                        />
+                                        <input
+                                            type="text"
+                                            value={data.imageTag || ''}
+                                            onChange={(e) => onUpdate(data.id, { imageTag: e.target.value })}
+                                            className="w-full rounded-lg border p-2 text-xs focus:ring-2 focus:ring-black focus:border-black transition-all"
+                                            placeholder="Image Tag (optional)"
+                                        />
                                         <div className="flex items-center gap-4">
-                                            <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={data.objectFit === 'contain'} onChange={() => onUpdate(data.id, { objectFit: data.objectFit === 'contain' ? 'cover' : 'contain' })} /> Contain</label>
-                                            <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={data.isPolaroid || false} onChange={() => onUpdate(data.id, { isPolaroid: !data.isPolaroid })} /> Polaroid</label>
+                                            <label className="flex items-center gap-2 text-xs cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={data.objectFit === 'contain'}
+                                                    onChange={() => onUpdate(data.id, { objectFit: data.objectFit === 'contain' ? 'cover' : 'contain' })}
+                                                    className="rounded"
+                                                />
+                                                Contain
+                                            </label>
+                                            <label className="flex items-center gap-2 text-xs cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={data.isPolaroid || false}
+                                                    onChange={() => onUpdate(data.id, { isPolaroid: !data.isPolaroid })}
+                                                    className="rounded"
+                                                />
+                                                Polaroid
+                                            </label>
                                         </div>
                                     </>
                                 )}
                             </div>
                             <div className="pt-4 border-t border-gray-100">
-                                <button onClick={() => onDelete(data.id)} className="flex w-full items-center justify-center gap-2 rounded-lg bg-red-50 p-3 text-sm font-medium text-red-600 hover:bg-red-100"><Trash2 size={16} /> Delete</button>
+                                <button
+                                    onClick={() => onDelete(data.id)}
+                                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-red-50 p-3 text-sm font-medium text-red-600 hover:bg-red-100 transition-colors"
+                                >
+                                    <Trash2 size={16} />
+                                    Delete Block
+                                </button>
                             </div>
                         </div>
                     </motion.div>
@@ -182,55 +265,129 @@ export const Block = React.forwardRef<HTMLDivElement, BlockProps>(({
             </AnimatePresence>
 
             {/* CONTENT RENDER */}
-            <div className="flex h-full flex-col p-6 pointer-events-none select-none">
-                <div className="mb-4 flex items-start justify-between">
-                    <button onClick={handleColorCycle} className={cn("text-[10px] font-medium uppercase tracking-widest text-gray-400 transition-colors hover:text-black pointer-events-auto", isEditMode && "pointer-events-none")}>{data.category}</button>
-                    {!data.isPolaroid && <ArrowUpRight className="h-4 w-4 text-gray-300" />}
+            <div className="flex h-full flex-col p-8 pointer-events-none select-none">
+                <div className="mb-6 flex items-start justify-between">
+                    <button
+                        onClick={handleColorCycle}
+                        className={cn(
+                            "text-[10px] font-black uppercase tracking-[0.2em] text-black/30 transition-colors hover:text-black pointer-events-auto",
+                            isEditMode && "pointer-events-none"
+                        )}
+                    >
+                        {data.category}
+                    </button>
+                    {!data.isPolaroid && <ArrowUpRight className="h-4 w-4 text-black/20 group-hover:text-black/40 transition-colors" />}
                 </div>
                 <div className="flex-1 relative flex items-center justify-center w-full">
+                    {/* TEXT BLOCK */}
                     {data.type === 'text' && (
                         <div className="flex flex-col h-full justify-center w-full text-left">
-                            <h3 className="font-serif-display text-2xl font-medium leading-tight text-gray-900 mb-3">{data.title}</h3>
-                            <p className="line-clamp-6 text-sm leading-relaxed text-gray-500 font-sans">{data.content}</p>
+                            <h3 className="font-serif-display text-2xl font-medium leading-tight text-gray-900 mb-3">
+                                {data.title}
+                            </h3>
+                            <p className="line-clamp-6 text-sm leading-relaxed text-gray-500 font-sans">
+                                {data.content}
+                            </p>
                             {data.meta && <div className="mt-4 text-[10px] text-gray-400">{data.meta}</div>}
                         </div>
                     )}
+
+                    {/* STICKY NOTE */}
                     {data.type === 'thought' && (
                         <div className="flex flex-col h-full items-center justify-center text-center p-2">
-                            <p className="font-hand text-2xl sm:text-3xl leading-snug text-gray-800 rotate-[-1deg]">{data.content || data.title}</p>
+                            <p className="font-hand text-2xl sm:text-3xl leading-snug text-gray-800 rotate-[-1deg]">
+                                {data.content || data.title}
+                            </p>
                         </div>
                     )}
+
+                    {/* QUOTE BLOCK */}
                     {data.type === 'quote' && (
                         <div className="flex flex-col h-full items-center justify-center text-center relative z-10">
-                            <p className="font-serif-display text-2xl sm:text-3xl italic leading-tight text-black mb-6">"{data.content}"</p>
-                            {data.author && <div className="absolute bottom-0 right-0 text-[10px] uppercase tracking-widest text-gray-500">— {data.author}</div>}
+                            <p className="font-serif-display text-2xl sm:text-3xl italic leading-tight text-black mb-6">
+                                "{data.content}"
+                            </p>
+                            {data.author && (
+                                <div className="absolute bottom-0 right-0 text-[10px] uppercase tracking-widest text-gray-500">
+                                    — {data.author}
+                                </div>
+                            )}
                         </div>
                     )}
+
+                    {/* PROJECT TILE - GLASSMORPHISM */}
                     {data.type === 'project' && (
                         <div className="flex flex-col justify-between h-full w-full text-left">
-                            <div>
-                                <h3 className="font-serif-display text-2xl font-bold leading-none tracking-tight text-black mb-2">{data.title}</h3>
-                                {data.content && <p className="text-sm text-gray-500">{data.content}</p>}
+                            <div className="mb-4">
+                                <h3 className="font-serif-display text-4xl font-black leading-[0.9] tracking-tighter text-black/90 mb-3">
+                                    {data.title}
+                                </h3>
+                                {data.content && (
+                                    <p className="text-sm font-sans tracking-tight text-black/50 leading-relaxed line-clamp-2">
+                                        {data.content}
+                                    </p>
+                                )}
                             </div>
-                            <div className="relative mt-4 flex-1 w-full overflow-hidden rounded-xl bg-gray-50 group-hover:shadow-inner transition-all">
-                                <div className="absolute inset-0 bg-gradient-to-tr from-violet-200 via-pink-200 to-orange-100 opacity-80 blur-xl" />
-                                <div className="absolute bottom-0 left-0 right-0 h-10 bg-white/30 backdrop-blur-md flex items-center px-4"><span className="text-[10px] font-bold uppercase tracking-widest text-black/60">View Project</span></div>
+                            <div className="relative mt-auto w-full overflow-hidden rounded-[20px] bg-gradient-to-br from-violet-50 via-pink-50 to-orange-50 group-hover:shadow-inner transition-all aspect-[4/3] border border-white">
+                                <div className="absolute inset-0 bg-gradient-to-tr from-violet-200/40 via-pink-200/40 to-orange-100/40 opacity-80 blur-3xl animate-pulse" style={{ animationDuration: '8s' }} />
+                                <div className="absolute inset-x-4 bottom-4 h-12 bg-white/60 backdrop-blur-xl flex items-center px-5 rounded-full border border-white/50 shadow-sm transition-transform group-hover:scale-[1.02]">
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-black/80">
+                                        Open Case Study
+                                    </span>
+                                    <ArrowUpRight className="ml-auto h-3 w-3 text-black/40" />
+                                </div>
                             </div>
                         </div>
                     )}
+
+                    {/* IMAGE BLOCK - POLAROID STYLE */}
                     {data.type === 'image' && data.imageUrl && (
-                        <div className={cn("absolute inset-0 z-0 transition-transform duration-700 hover:scale-105", data.isPolaroid ? "top-0 -mx-6 -mt-16 pb-12 bg-white flex flex-col shadow-lg rotate-1 items-center justify-center" : "-mx-6 -mb-6 mt-2 rounded-b-3xl overflow-hidden")}>
-                            <img src={data.imageUrl} alt={data.title || "Gallery Image"} className={cn("w-full flex-1", data.objectFit === 'contain' ? "object-contain bg-gray-50" : "object-cover", data.isPolaroid ? "h-[85%] border-[12px] border-white w-auto max-w-full" : "h-full")} />
-                            {data.isPolaroid && (<div className="h-[15%] w-full bg-white flex items-center justify-between px-6 pb-2 absolute bottom-0"><span className="font-hand text-xl text-gray-600 truncate">{data.title || 'Untitled'}</span><span className="text-[9px] uppercase tracking-widest text-gray-400 shrink-0">{data.imageTag || 'Photo'}</span></div>)}
-                            {!data.isPolaroid && data.imageTag && (<div className="absolute bottom-4 left-4 rounded-md bg-black/20 px-2 py-1 text-[10px] font-medium text-white backdrop-blur-md">{data.imageTag}</div>)}
+                        <div className={cn(
+                            "absolute inset-0 z-0 transition-transform duration-700 hover:scale-105 overflow-hidden flex flex-col items-center justify-center",
+                            data.isPolaroid
+                                ? "bg-white shadow-xl rotate-1 p-4 pb-12"
+                                : "rounded-t-lg"
+                        )}>
+                            <img
+                                src={data.imageUrl}
+                                alt={data.title || "Gallery Image"}
+                                className={cn(
+                                    "w-full h-full",
+                                    data.objectFit === 'contain' ? "object-contain bg-gray-50" : "object-cover",
+                                    data.isPolaroid && "border-[8px] border-white shadow-inner"
+                                )}
+                            />
+                            {data.isPolaroid && (
+                                <div className="absolute bottom-0 left-0 right-0 h-10 w-full bg-white flex items-center justify-between px-4 pb-1">
+                                    <span className="font-hand text-lg text-gray-600 truncate">
+                                        {data.title || 'Untitled'}
+                                    </span>
+                                    <span className="text-[8px] uppercase tracking-widest text-gray-400 shrink-0">
+                                        {data.imageTag || 'Photo'}
+                                    </span>
+                                </div>
+                            )}
+                            {!data.isPolaroid && data.imageTag && (
+                                <div className="absolute bottom-4 left-4 rounded-md bg-black/30 px-2 py-1 text-[10px] font-medium text-white backdrop-blur-md">
+                                    {data.imageTag}
+                                </div>
+                            )}
                         </div>
                     )}
+
+                    {/* STATUS BLOCK */}
                     {data.type === 'status' && (
                         <div className="flex flex-col h-full w-full text-left">
                             <div className="flex gap-2 mb-3">
-                                {data.status && <span className="inline-flex items-center rounded-sm bg-orange-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-orange-600">{data.status}</span>}
+                                {data.status && (
+                                    <span className="inline-flex items-center rounded-sm bg-orange-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-orange-600">
+                                        {data.status}
+                                    </span>
+                                )}
                             </div>
-                            <h3 className="font-serif-display text-4xl font-normal leading-none tracking-tight text-black">{data.title}</h3>
+                            <h3 className="font-serif-display text-4xl font-normal leading-none tracking-tight text-black">
+                                {data.title}
+                            </h3>
                             {data.content && <p className="mt-2 text-xs text-gray-500">{data.content}</p>}
                         </div>
                     )}
@@ -239,4 +396,5 @@ export const Block = React.forwardRef<HTMLDivElement, BlockProps>(({
         </div>
     );
 });
+
 Block.displayName = 'Block';
