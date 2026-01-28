@@ -84,6 +84,18 @@ export const Block = React.forwardRef<HTMLDivElement, BlockProps>(({
                 isDebugMode && "ring-2 ring-red-500 ring-inset"
             );
         }
+
+        // Premium styling for project tiles
+        if (data.type === 'project') {
+            return cn(
+                base,
+                "rounded-[24px] bg-[#F9F9F9] shadow-sm",
+                isEditMode ? "border-2 border-dashed border-black/20" : "border border-black/5",
+                !isEditMode && "hover:shadow-2xl hover:shadow-black/5 hover:-translate-y-1",
+                isDebugMode && "ring-2 ring-red-500 ring-inset"
+            );
+        }
+
         return cn(base, "rounded-[24px] bg-white shadow-sm", border, isDebugMode && "ring-2 ring-red-500 ring-inset");
     };
 
@@ -349,37 +361,37 @@ export const Block = React.forwardRef<HTMLDivElement, BlockProps>(({
             </AnimatePresence>
 
             {/* CONTENT RENDER */}
-            <div className="flex h-full flex-col p-8 pointer-events-none select-none">
-                <div className="mb-6 flex items-start justify-between">
+            <div className="flex h-full flex-col p-4 sm:p-6 lg:p-8 pointer-events-none select-none">
+                <div className="mb-4 sm:mb-6 flex items-start justify-between">
                     <button
                         onClick={handleColorCycle}
                         className={cn(
-                            "text-[10px] font-black uppercase tracking-[0.2em] text-black/30 transition-colors hover:text-black pointer-events-auto",
+                            "text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] text-black/30 transition-colors hover:text-black pointer-events-auto",
                             isEditMode && "pointer-events-none"
                         )}
                     >
                         {data.category}
                     </button>
-                    {!data.isPolaroid && data.link && <ArrowUpRight className="h-4 w-4 text-black/20 group-hover:text-black/40 transition-colors" />}
+                    {!data.isPolaroid && data.link && <ArrowUpRight className="h-3 w-3 sm:h-4 sm:w-4 text-black/20 group-hover:text-black/40 transition-colors" />}
                 </div>
                 <div className="flex-1 relative flex items-center justify-center w-full">
                     {/* TEXT BLOCK */}
                     {data.type === 'text' && (
                         <div className="flex flex-col h-full justify-center w-full text-left">
-                            <h3 className="font-serif-display text-2xl font-medium leading-tight text-gray-900 mb-3">
+                            <h3 className="font-serif-display text-lg sm:text-xl lg:text-2xl font-medium leading-tight text-gray-900 mb-2 sm:mb-3">
                                 {data.title}
                             </h3>
-                            <p className="line-clamp-6 text-sm leading-relaxed text-gray-500 font-sans">
+                            <p className="line-clamp-6 text-xs sm:text-sm leading-relaxed text-gray-500 font-sans">
                                 {data.content}
                             </p>
-                            {data.meta && <div className="mt-4 text-[10px] text-gray-400">{data.meta}</div>}
+                            {data.meta && <div className="mt-3 sm:mt-4 text-[9px] sm:text-[10px] text-gray-400">{data.meta}</div>}
                         </div>
                     )}
 
                     {/* STICKY NOTE */}
                     {data.type === 'thought' && (
-                        <div className="flex flex-col h-full items-center justify-center text-center p-2">
-                            <p className="font-hand text-2xl sm:text-3xl leading-snug text-gray-800 rotate-[-1deg]">
+                        <div className="flex flex-col h-full items-center justify-center text-center p-1 sm:p-2">
+                            <p className="font-hand text-lg sm:text-2xl lg:text-3xl leading-snug text-gray-800 rotate-[-1deg]">
                                 {data.content || data.title}
                             </p>
                         </div>
@@ -388,39 +400,93 @@ export const Block = React.forwardRef<HTMLDivElement, BlockProps>(({
                     {/* QUOTE BLOCK */}
                     {data.type === 'quote' && (
                         <div className="flex flex-col h-full items-center justify-center text-center relative z-10">
-                            <p className="font-serif-display text-2xl sm:text-3xl italic leading-tight text-black mb-6">
+                            <p className="font-serif-display text-lg sm:text-xl lg:text-2xl xl:text-3xl italic leading-tight text-black mb-4 sm:mb-6">
                                 "{data.content}"
                             </p>
                             {data.author && (
-                                <div className="absolute bottom-0 right-0 text-[10px] uppercase tracking-widest text-gray-500">
+                                <div className="absolute bottom-0 right-0 text-[9px] sm:text-[10px] uppercase tracking-widest text-gray-500">
                                     — {data.author}
                                 </div>
                             )}
                         </div>
                     )}
 
-                    {/* PROJECT TILE - GLASSMORPHISM */}
+                    {/* PROJECT TILE - ADAPTIVE PREMIUM DESIGN */}
                     {data.type === 'project' && (
-                        <div className="flex flex-col justify-between h-full w-full text-left">
-                            <div className="mb-4">
-                                <h3 className="font-serif-display text-4xl font-black leading-[0.9] tracking-tighter text-black/90 mb-3">
-                                    {data.title}
-                                </h3>
-                                {data.content && (
-                                    <p className="text-sm font-sans tracking-tight text-black/50 leading-relaxed line-clamp-2">
-                                        {data.content}
+                        <div className="flex flex-col h-full w-full relative pointer-events-auto">
+                            {/* Top Bar: Type · Title + Arrow */}
+                            <div className="flex items-start justify-between mb-4 relative z-20">
+                                <div className="flex-1">
+                                    <p
+                                        className="text-xs text-[#888] capitalize"
+                                        style={{
+                                            fontFamily: 'Inter, sans-serif',
+                                            fontSize: '12px',
+                                            letterSpacing: '0.05em'
+                                        }}
+                                    >
+                                        {data.category} · {data.title}
                                     </p>
+                                </div>
+                                {data.link && (
+                                    <motion.a
+                                        href={data.link}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        whileHover={{ scale: 1.1, y: -2, boxShadow: '0 8px 16px rgba(0,0,0,0.12)' }}
+                                        whileTap={{ scale: 0.95 }}
+                                        className="flex h-8 w-8 items-center justify-center rounded-full bg-white shadow-md transition-all border border-black/5 pointer-events-auto"
+                                        onClick={(e) => e.stopPropagation()}
+                                        style={{
+                                            width: '32px',
+                                            height: '32px'
+                                        }}
+                                    >
+                                        <ArrowUpRight className="text-black/60" style={{ width: '14px', height: '14px' }} />
+                                    </motion.a>
                                 )}
                             </div>
-                            <div className="relative mt-auto w-full overflow-hidden rounded-[20px] bg-gradient-to-br from-violet-50 via-pink-50 to-orange-50 group-hover:shadow-inner transition-all aspect-[4/3] border border-white">
-                                <div className="absolute inset-0 bg-gradient-to-tr from-violet-200/40 via-pink-200/40 to-orange-100/40 opacity-80 blur-3xl animate-pulse" style={{ animationDuration: '8s' }} />
-                                <div className="absolute inset-x-4 bottom-4 h-12 bg-white/60 backdrop-blur-xl flex items-center px-5 rounded-full border border-white/50 shadow-sm transition-transform group-hover:scale-[1.02]">
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-black/80">
-                                        Open Case Study
-                                    </span>
-                                    <ArrowUpRight className="ml-auto h-3 w-3 text-black/40" />
-                                </div>
+
+                            {/* Floating Image Container - Adaptive Padding */}
+                            <div
+                                className="flex-1 flex items-center justify-center overflow-hidden"
+                                style={{
+                                    padding: data.w >= 6 ? '40px 0' : '20px 0'
+                                }}
+                            >
+                                <motion.div
+                                    className="relative w-full h-full flex items-center justify-center"
+                                    whileHover={{ scale: 1.05 }}
+                                    transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
+                                >
+                                    {data.imageUrl ? (
+                                        <img
+                                            src={data.imageUrl}
+                                            alt={data.title || 'Project'}
+                                            className="object-contain pointer-events-none"
+                                            style={{
+                                                filter: 'drop-shadow(0 20px 30px rgba(0,0,0,0.08))',
+                                                maxWidth: '100%',
+                                                maxHeight: data.w >= 6 ? '70%' : '100%',
+                                                height: data.w >= 6 ? '70%' : 'auto',
+                                            }}
+                                        />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl border border-black/5">
+                                            <span className="text-xs text-gray-400 uppercase tracking-widest">Add Image</span>
+                                        </div>
+                                    )}
+                                </motion.div>
                             </div>
+
+                            {/* Optional Content/Description - Only show if w >= 6 */}
+                            {data.w >= 6 && data.content && (
+                                <div className="mt-auto pt-4 relative z-20">
+                                    <p className="text-sm text-gray-500 leading-relaxed line-clamp-2">
+                                        {data.content}
+                                    </p>
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -506,17 +572,17 @@ export const Block = React.forwardRef<HTMLDivElement, BlockProps>(({
                     {/* STATUS BLOCK */}
                     {data.type === 'status' && (
                         <div className="flex flex-col h-full w-full text-left">
-                            <div className="flex gap-2 mb-3">
+                            <div className="flex gap-2 mb-2 sm:mb-3">
                                 {data.status && (
-                                    <span className="inline-flex items-center rounded-sm bg-orange-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-orange-600">
+                                    <span className="inline-flex items-center rounded-sm bg-orange-100 px-1.5 py-0.5 text-[8px] sm:text-[9px] font-bold uppercase tracking-wide text-orange-600">
                                         {data.status}
                                     </span>
                                 )}
                             </div>
-                            <h3 className="font-serif-display text-4xl font-normal leading-none tracking-tight text-black">
+                            <h3 className="font-serif-display text-2xl sm:text-3xl lg:text-4xl font-normal leading-none tracking-tight text-black">
                                 {data.title}
                             </h3>
-                            {data.content && <p className="mt-2 text-xs text-gray-500">{data.content}</p>}
+                            {data.content && <p className="mt-1 sm:mt-2 text-[10px] sm:text-xs text-gray-500">{data.content}</p>}
                         </div>
                     )}
                 </div>

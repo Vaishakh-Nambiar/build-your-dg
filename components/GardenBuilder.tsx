@@ -199,12 +199,12 @@ export default function GardenBuilder() {
             />
 
             {/* MAIN PORTAL AREA */}
-            <main className="pt-40 pb-20">
+            <main className="pt-32 sm:pt-40 pb-16 sm:pb-20">
                 <div
-                    className="max-w-[1800px] mx-auto mb-20 px-4"
-                    style={{ paddingLeft: `${sidePadding}px`, paddingRight: `${sidePadding}px` }}
+                    className="max-w-[1800px] mx-auto mb-12 sm:mb-20 px-4"
+                    style={{ paddingLeft: `${Math.max(16, sidePadding)}px`, paddingRight: `${Math.max(16, sidePadding)}px` }}
                 >
-                    <h1 className="font-serif-display text-8xl font-black italic tracking-tighter text-black/90 ml-[-4px] leading-[0.8]">
+                    <h1 className="font-serif-display text-4xl sm:text-6xl lg:text-8xl font-black italic tracking-tighter text-black/90 ml-[-2px] sm:ml-[-4px] leading-[0.8]">
                         {gardenName}
                     </h1>
                 </div>

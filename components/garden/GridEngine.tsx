@@ -10,11 +10,13 @@ function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
 }
 
-// Fix for Next.js/Turbopack ESM compatibility
-const RGL = require('react-grid-layout');
-const ReactGridLayout = typeof RGL === 'function' ? RGL : (RGL.default || RGL);
-
-export type BlockType = 'text' | 'image' | 'video' | 'quote' | 'thought' | 'project' | 'status';
+// Proper ES6 import with dynamic fallback
+let ReactGridLayout: any;
+try {
+    ReactGridLayout = require('react-grid-layout').default || require('react-grid-layout');
+} catch (error) {
+    console.error('Failed to load react-grid-layout:', error);
+}
 
 interface Layout {
     i: string;
@@ -34,9 +36,25 @@ interface GridEngineProps {
     sidePadding: number;
 }
 
-const MAX_COLS = 12;
-const ROW_HEIGHT = 100;
-const GRID_MARGIN: [number, number] = [16, 16];
+// Responsive breakpoints and configurations
+const BREAKPOINTS = {
+    xxl: 1400,
+    xl: 1200,
+    lg: 996,
+    md: 768,
+    sm: 576,
+    xs: 0
+};
+
+const RESPONSIVE_CONFIGS = {
+    xxl: { cols: 12, rowHeight: 100, margin: [16, 16] },
+    xl: { cols: 10, rowHeight: 90, margin: [14, 14] },
+    lg: { cols: 8, rowHeight: 80, margin: [12, 12] },
+    md: { cols: 6, rowHeight: 70, margin: [10, 10] },
+    sm: { cols: 4, rowHeight: 60, margin: [8, 8] },
+    xs: { cols: 2, rowHeight: 50, margin: [6, 6] }
+};
+
 const CONTAINER_PADDING: [number, number] = [0, 0];
 
 export const GridEngine = ({
@@ -49,21 +67,95 @@ export const GridEngine = ({
     sidePadding
 }: GridEngineProps) => {
     const [width, setWidth] = useState(1200);
+    const [currentBreakpoint, setCurrentBreakpoint] = useState('xxl');
     const containerRef = useRef<HTMLDivElement>(null);
+
+    // Get current responsive config
+    const config = RESPONSIVE_CONFIGS[currentBreakpoint as keyof typeof RESPONSIVE_CONFIGS];
+    const { cols: MAX_COLS, rowHeight: ROW_HEIGHT, margin: GRID_MARGIN } = config;
+
+    // Determine current breakpoint based on width
+    const getBreakpoint = (width: number): string => {
+        if (width >= BREAKPOINTS.xxl) return 'xxl';
+        if (width >= BREAKPOINTS.xl) return 'xl';
+        if (width >= BREAKPOINTS.lg) return 'lg';
+        if (width >= BREAKPOINTS.md) return 'md';
+        if (width >= BREAKPOINTS.sm) return 'sm';
+        return 'xs';
+    };
+
+    // Smart layout compaction for smaller screens
+    const getResponsiveLayout = (layout: Layout[], breakpoint: string) => {
+        const maxCols = RESPONSIVE_CONFIGS[breakpoint as keyof typeof RESPONSIVE_CONFIGS].cols;
+        
+        return layout.map(item => {
+            let { w, h } = item;
+            
+            // Smart scaling based on breakpoint
+            switch (breakpoint) {
+                case 'xs':
+                    // Force everything to be narrow on mobile
+                    w = Math.min(w, 2);
+                    h = Math.max(h, 2); // Maintain minimum height
+                    break;
+                case 'sm':
+                    w = Math.min(w, 3);
+                    break;
+                case 'md':
+                    w = Math.min(w, 4);
+                    break;
+                case 'lg':
+                    w = Math.min(w, 6);
+                    break;
+                default:
+                    // xl and xxl keep original sizes
+                    break;
+            }
+            
+            // Ensure items don't exceed column limits
+            w = Math.min(w, maxCols);
+            
+            // Reposition if necessary
+            let x = item.x;
+            if (x + w > maxCols) {
+                x = Math.max(0, maxCols - w);
+            }
+            
+            return { ...item, x, w, h };
+        });
+    };
 
     useEffect(() => {
         if (!containerRef.current) return;
 
         const observer = new ResizeObserver(([entry]) => {
-            setWidth(Math.floor(entry.contentRect.width));
+            const newWidth = Math.floor(entry.contentRect.width);
+            const newBreakpoint = getBreakpoint(newWidth);
+            
+            setWidth(newWidth);
+            
+            if (newBreakpoint !== currentBreakpoint) {
+                setCurrentBreakpoint(newBreakpoint);
+                
+                // Update layout for new breakpoint
+                const responsiveLayout = getResponsiveLayout(currentLayout, newBreakpoint);
+                if (JSON.stringify(responsiveLayout) !== JSON.stringify(currentLayout)) {
+                    onLayoutChange(responsiveLayout);
+                }
+            }
         });
 
-        if (containerRef.current) setWidth(containerRef.current.offsetWidth);
+        if (containerRef.current) {
+            const initialWidth = containerRef.current.offsetWidth;
+            setWidth(initialWidth);
+            setCurrentBreakpoint(getBreakpoint(initialWidth));
+        }
+        
         observer.observe(containerRef.current);
         return () => observer.disconnect();
-    }, []);
+    }, [currentLayout, currentBreakpoint, onLayoutChange]);
 
-    const colWidth = (width - (11 * GRID_MARGIN[0])) / MAX_COLS;
+    const colWidth = (width - ((MAX_COLS - 1) * GRID_MARGIN[0])) / MAX_COLS;
 
     return (
         <div
@@ -87,6 +179,11 @@ export const GridEngine = ({
                 {/* VISUAL DEBUGGER OVERLAY */}
                 {showGrid && (
                     <div className="absolute inset-0 pointer-events-none z-10">
+                        {/* Breakpoint Indicator */}
+                        <div className="absolute top-[-80px] left-0 bg-blue-100 text-blue-900 px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wide">
+                            {currentBreakpoint.toUpperCase()} • {MAX_COLS} cols • {width}px
+                        </div>
+                        
                         {/* Column Numbers */}
                         <div className="absolute top-[-50px] left-0 right-0 flex">
                             {Array.from({ length: MAX_COLS }).map((_, i) => {
@@ -96,7 +193,7 @@ export const GridEngine = ({
                                         key={i}
                                         className={cn(
                                             "text-[10px] font-black text-center py-2 rounded absolute tracking-tighter transition-all",
-                                            i === 11 ? "bg-yellow-100 text-yellow-900 border border-yellow-200" : "text-black/20"
+                                            i === MAX_COLS - 1 ? "bg-yellow-100 text-yellow-900 border border-yellow-200" : "text-black/20"
                                         )}
                                         style={{ left: `${leftPos}px`, width: `${colWidth}px` }}
                                     >
@@ -115,7 +212,7 @@ export const GridEngine = ({
                                         key={i}
                                         className={cn(
                                             "absolute top-0 bottom-0 border-x border-dashed transition-all duration-500",
-                                            i === 11 ? "bg-yellow-50/30 border-yellow-400/20" : "bg-black/[0.005] border-black/5"
+                                            i === MAX_COLS - 1 ? "bg-yellow-50/30 border-yellow-400/20" : "bg-black/[0.005] border-black/5"
                                         )}
                                         style={{
                                             left: `${leftPos}px`,
@@ -138,12 +235,14 @@ export const GridEngine = ({
                     containerPadding={CONTAINER_PADDING}
                     isDraggable={isEditMode}
                     isResizable={isEditMode}
-                    compactType={null}
+                    compactType={currentBreakpoint === 'xs' || currentBreakpoint === 'sm' ? 'vertical' : null}
                     preventCollision={false}
                     draggableHandle=".drag-handle"
                     resizeHandles={['se', 'e', 's']}
                     onLayoutChange={onLayoutChange}
-                    layout={currentLayout}
+                    layout={getResponsiveLayout(currentLayout, currentBreakpoint)}
+                    useCSSTransforms={true}
+                    autoSize={true}
                 >
                     {children}
                 </ReactGridLayout>
