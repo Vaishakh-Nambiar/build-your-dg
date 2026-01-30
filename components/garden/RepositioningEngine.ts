@@ -204,9 +204,9 @@ export class RepositioningEngine {
     const conflictingTiles = this.findConflictingTiles(newDraggedItem, otherItems);
 
     if (conflictingTiles.length === 0) {
-      // No conflicts, simple placement
+      // No conflicts, simple placement - return other items unchanged
       return {
-        newLayout: otherItems, // Don't include the dragged item in the layout
+        newLayout: otherItems,
         shiftedTiles: [],
         success: true,
       };
@@ -221,7 +221,7 @@ export class RepositioningEngine {
 
     if (shiftResult.success) {
       return {
-        newLayout: shiftResult.newLayout, // Don't include the dragged item
+        newLayout: shiftResult.newLayout,
         shiftedTiles: shiftResult.shiftedTiles,
         success: true,
       };
@@ -238,13 +238,13 @@ export class RepositioningEngine {
     const bestAlternative = alternatives.find(alt => alt.isValid);
     if (bestAlternative) {
       return {
-        newLayout: bestAlternative.shiftPreview, // Don't include the dragged item
+        newLayout: bestAlternative.shiftPreview,
         shiftedTiles: [],
         success: true,
       };
     }
 
-    // No valid position found
+    // No valid position found - return original layout
     return {
       newLayout: layout,
       shiftedTiles: [],

@@ -180,76 +180,114 @@ export const GridEngine = ({
     const handleDragStart = (layout: Layout[], oldItem: Layout, newItem: Layout, placeholder: Layout, e: MouseEvent, element: HTMLElement) => {
         if (!isEditMode) return;
         
+        // Store the original position to prevent jumping
         const gridItem: GridItem = {
-            i: newItem.i,
-            x: newItem.x,
-            y: newItem.y,
-            w: newItem.w,
-            h: newItem.h,
+            i: oldItem.i,
+            x: oldItem.x,  // Keep original position
+            y: oldItem.y,  // Keep original position
+            w: oldItem.w,
+            h: oldItem.h,
             isDraggable: true
         };
         
         setDraggedItem(gridItem);
+        
+        // Add dragging class for visual feedback
+        element.classList.add('react-draggable-dragging');
+        
+        // Prevent the tile from jumping by maintaining its position
+        element.style.transform = `translate(${oldItem.x * (colWidth + GRID_MARGIN[0])}px, ${oldItem.y * (ROW_HEIGHT + GRID_MARGIN[1])}px)`;
     };
 
     const handleDrag = (layout: Layout[], oldItem: Layout, newItem: Layout, placeholder: Layout, e: MouseEvent, element: HTMLElement) => {
         if (!isEditMode || !draggedItem) return;
 
-        // Calculate drop zones for visual feedback
-        const currentLayout: GridItem[] = layout.map(item => ({
-            i: item.i,
-            x: item.x,
-            y: item.y,
-            w: item.w,
-            h: item.h,
-            isDraggable: true
-        }));
+        // Only calculate drop zones if the position actually changed significantly
+        const positionChanged = Math.abs(newItem.x - draggedItem.x) > 0 || Math.abs(newItem.y - draggedItem.y) > 0;
+        
+        if (positionChanged) {
+            // Calculate drop zones for visual feedback
+            const currentLayout: GridItem[] = layout
+                .filter(item => item.i !== draggedItem.i)  // Exclude the dragged item
+                .map(item => ({
+                    i: item.i,
+                    x: item.x,
+                    y: item.y,
+                    w: item.w,
+                    h: item.h,
+                    isDraggable: true
+                }));
 
-        const zones = repositioningEngine.calculateValidDropZones(
-            draggedItem,
-            currentLayout,
-            newItem.x,
-            newItem.y
-        );
+            const zones = repositioningEngine.calculateValidDropZones(
+                draggedItem,
+                currentLayout,
+                newItem.x,
+                newItem.y
+            );
 
-        setDropZones(zones);
+            setDropZones(zones);
+        }
     };
 
     const handleDragStop = (layout: Layout[], oldItem: Layout, newItem: Layout, placeholder: Layout, e: MouseEvent, element: HTMLElement) => {
         if (!isEditMode || !draggedItem) return;
 
-        // Use intelligent repositioning to handle the drop
-        const currentLayout: GridItem[] = layout.map(item => ({
-            i: item.i,
-            x: item.x,
-            y: item.y,
-            w: item.w,
-            h: item.h,
-            isDraggable: true
-        }));
+        // Remove dragging class
+        element.classList.remove('react-draggable-dragging');
+        
+        // Reset any inline styles that might have been applied
+        element.style.transform = '';
 
-        const repositionResult = repositioningEngine.shiftTilesOnDrop(
-            draggedItem,
-            newItem.x,
-            newItem.y,
-            currentLayout
-        );
+        // Only process if position actually changed
+        const positionChanged = newItem.x !== draggedItem.x || newItem.y !== draggedItem.y;
+        
+        if (positionChanged) {
+            // Use intelligent repositioning to handle the drop
+            const currentLayout: GridItem[] = layout
+                .filter(item => item.i !== draggedItem.i)  // Exclude the dragged item
+                .map(item => ({
+                    i: item.i,
+                    x: item.x,
+                    y: item.y,
+                    w: item.w,
+                    h: item.h,
+                    isDraggable: true
+                }));
 
-        if (repositionResult.success) {
-            // Convert back to react-grid-layout format
-            const newLayout: Layout[] = repositionResult.newLayout.map(item => ({
-                i: item.i,
-                x: item.x,
-                y: item.y,
-                w: item.w,
-                h: item.h
-            }));
+            const repositionResult = repositioningEngine.shiftTilesOnDrop(
+                draggedItem,
+                newItem.x,
+                newItem.y,
+                currentLayout
+            );
 
-            onLayoutChange(newLayout);
-        } else {
-            // Revert to original position if repositioning fails
-            console.warn('Repositioning failed:', repositionResult.reason);
-            // The layout will automatically revert since we don't call onLayoutChange
+            if (repositionResult.success) {
+                // Create the complete new layout including the moved item
+                const newLayout: Layout[] = [
+                    ...repositionResult.newLayout.map(item => ({
+                        i: item.i,
+                        x: item.x,
+                        y: item.y,
+                        w: item.w,
+                        h: item.h
+                    })),
+                    // Add the dragged item at its new position
+                    {
+                        i: draggedItem.i,
+                        x: newItem.x,
+                        y: newItem.y,
+                        w: draggedItem.w,
+                        h: draggedItem.h
+                    }
+                ];
+
+                onLayoutChange(newLayout);
+            } else {
+                // Revert to original position if repositioning fails
+                console.warn('Repositioning failed:', repositionResult.reason);
+                // Force revert by calling onLayoutChange with current layout
+                onLayoutChange(currentLayout);
+            }
         }
 
         // Clean up drag state
@@ -599,7 +637,8 @@ export const GridEngine = ({
                     isResizable={false}
                     compactType={currentBreakpoint === 'xs' || currentBreakpoint === 'sm' ? 'vertical' : null}
                     preventCollision={false}
-                    draggableHandle=".drag-handle"
+                    draggableHandle={isEditMode ? ".drag-handle" : ""}
+                    draggableCancel=".no-drag"
                     resizeHandles={[]}
                     onLayoutChange={onLayoutChange}
                     onDragStart={handleDragStart}
@@ -629,25 +668,34 @@ export const GridEngine = ({
 
                 /* Enhanced smooth animations for tile movements */
                 .react-grid-item {
-                    transition: all 600ms cubic-bezier(0.23, 1, 0.32, 1);
-                    transition-property: left, top, width, height, transform, opacity;
+                    transition: all 400ms cubic-bezier(0.23, 1, 0.32, 1);
+                    transition-property: transform, opacity, box-shadow;
                     will-change: transform;
+                    transform-origin: center center;
                 }
                 
-                /* Hover state animations for repositionable tiles */
-                .react-grid-item:hover {
-                    transform: translateY(-2px);
-                    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-                    z-index: 10;
-                }
-                
-                /* Active dragging state with enhanced visual feedback */
+                /* CRITICAL FIX: Prevent tile from jumping to 0,0 during drag */
                 .react-grid-item.react-draggable-dragging {
                     transition: none !important;
                     z-index: 100 !important;
-                    transform: rotate(2deg) scale(1.05) !important;
-                    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3) !important;
-                    opacity: 0.9 !important;
+                    opacity: 0.4 !important; /* Make transparent during drag */
+                    pointer-events: none !important; /* Prevent interference */
+                }
+                
+                /* Keep the drag handle visible and functional during drag */
+                .react-grid-item.react-draggable-dragging .drag-handle {
+                    opacity: 1 !important;
+                    background: rgba(59, 130, 246, 0.9) !important;
+                    color: white !important;
+                    transform: scale(1.1) !important;
+                    pointer-events: auto !important;
+                }
+                
+                /* Smooth hover effects only when not dragging and in edit mode */
+                .react-grid-item:not(.react-draggable-dragging):hover {
+                    transform: translateY(-1px);
+                    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+                    z-index: 10;
                 }
                 
                 /* Enhanced placeholder with pulsing animation */
@@ -715,6 +763,31 @@ export const GridEngine = ({
                     display: none !important;
                 }
 
+                /* Ensure drag handle is always accessible and visible */
+                .drag-handle {
+                    cursor: grab !important;
+                    touch-action: none !important;
+                    user-select: none !important;
+                    -webkit-user-select: none !important;
+                    -moz-user-select: none !important;
+                    -ms-user-select: none !important;
+                    z-index: 200 !important;
+                }
+                
+                .drag-handle:active {
+                    cursor: grabbing !important;
+                }
+
+                /* Prevent dragging on everything except drag handle */
+                .react-grid-item > * {
+                    pointer-events: auto;
+                }
+                
+                .react-grid-item .no-drag {
+                    pointer-events: auto !important;
+                    cursor: default !important;
+                }
+
                 ${isDebugMode ? `
                     .react-grid-item {
                         outline: 2px solid rgba(59, 130, 246, 0.4);
@@ -725,6 +798,11 @@ export const GridEngine = ({
                     .react-grid-item:hover {
                         outline-color: rgba(59, 130, 246, 0.6);
                         background: rgba(59, 130, 246, 0.05);
+                    }
+                    
+                    .drag-handle {
+                        outline: 2px solid red !important;
+                        background: rgba(255, 0, 0, 0.1) !important;
                     }
                 ` : ''}
             `}</style>

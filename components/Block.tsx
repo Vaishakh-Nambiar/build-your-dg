@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowUpRight, Trash2, X, GripVertical, Edit3, Check } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
@@ -113,10 +113,6 @@ export const Block = React.forwardRef<HTMLDivElement, BlockProps>(({
         return cn(base, "rounded-[8px] bg-white shadow-sm", border, isDebugMode && "ring-2 ring-red-500 ring-inset");
     };
 
-    const combinedStyle: React.CSSProperties = {
-        backgroundColor: data.color,
-    };
-
     return (
         <div
             ref={ref}
@@ -134,8 +130,15 @@ export const Block = React.forwardRef<HTMLDivElement, BlockProps>(({
             {/* GRIP HANDLE - 6-DOT MOVEMENT CONTROL */}
             {isEditMode && (
                 <div
-                    className="drag-handle absolute top-3 left-1/2 -translate-x-1/2 z-30 flex h-8 w-12 cursor-grab touch-none items-center justify-center rounded-full bg-white/90 backdrop-blur-sm opacity-0 hover:opacity-100 group-hover:opacity-100 transition-opacity hover:bg-white active:cursor-grabbing shadow-lg border border-black/10"
-                    onClick={(e) => e.stopPropagation()}
+                    className="drag-handle absolute top-3 left-1/2 -translate-x-1/2 z-30 flex h-8 w-12 cursor-grab touch-none items-center justify-center rounded-full bg-white/95 backdrop-blur-sm opacity-0 hover:opacity-100 group-hover:opacity-100 transition-opacity hover:bg-white active:cursor-grabbing shadow-lg border border-black/10"
+                    onMouseDown={(e) => {
+                        e.stopPropagation();
+                        // Allow the drag to proceed - react-grid-layout will handle it
+                    }}
+                    onTouchStart={(e) => {
+                        e.stopPropagation();
+                        // Allow the drag to proceed - react-grid-layout will handle it
+                    }}
                 >
                     <GripVertical size={18} className="text-black/60" />
                 </div>
@@ -143,7 +146,7 @@ export const Block = React.forwardRef<HTMLDivElement, BlockProps>(({
 
             {/* HOVER CONTROLS - EDIT & DELETE */}
             {isEditMode && (
-                <div className="absolute top-3 right-3 z-30 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="no-drag absolute top-3 right-3 z-30 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
                         onClick={(e) => {
                             e.stopPropagation();
@@ -153,7 +156,7 @@ export const Block = React.forwardRef<HTMLDivElement, BlockProps>(({
                                 setShowSettings(true);
                             }
                         }}
-                        className="flex h-8 w-8 items-center justify-center rounded-full bg-white/90 backdrop-blur-sm hover:bg-blue-50 hover:text-blue-600 transition-all shadow-lg border border-black/10"
+                        className="no-drag flex h-8 w-8 items-center justify-center rounded-full bg-white/90 backdrop-blur-sm hover:bg-blue-50 hover:text-blue-600 transition-all shadow-lg border border-black/10"
                         title="Edit"
                     >
                         <Edit3 size={14} />
@@ -165,7 +168,7 @@ export const Block = React.forwardRef<HTMLDivElement, BlockProps>(({
                                 onDelete(data.id);
                             }
                         }}
-                        className="flex h-8 w-8 items-center justify-center rounded-full bg-white/90 backdrop-blur-sm hover:bg-red-50 hover:text-red-600 transition-all shadow-lg border border-black/10"
+                        className="no-drag flex h-8 w-8 items-center justify-center rounded-full bg-white/90 backdrop-blur-sm hover:bg-red-50 hover:text-red-600 transition-all shadow-lg border border-black/10"
                         title="Delete"
                     >
                         <Trash2 size={14} />
@@ -400,12 +403,12 @@ export const Block = React.forwardRef<HTMLDivElement, BlockProps>(({
             </AnimatePresence>
 
             {/* CONTENT RENDER */}
-            <div className="flex h-full flex-col p-4 sm:p-6 lg:p-8 pointer-events-none select-none">
+            <div className="no-drag flex h-full flex-col p-4 sm:p-6 lg:p-8 pointer-events-none select-none">
                 <div className="mb-4 sm:mb-6 flex items-start justify-between">
                     <button
                         onClick={handleColorCycle}
                         className={cn(
-                            "text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] text-black/30 transition-colors hover:text-black pointer-events-auto",
+                            "no-drag text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] text-black/30 transition-colors hover:text-black pointer-events-auto",
                             isEditMode && "pointer-events-none"
                         )}
                     >
@@ -413,7 +416,7 @@ export const Block = React.forwardRef<HTMLDivElement, BlockProps>(({
                     </button>
                     {!data.isPolaroid && data.link && <ArrowUpRight className="h-3 w-3 sm:h-4 sm:w-4 text-black/20 group-hover:text-black/40 transition-colors" />}
                 </div>
-                <div className="flex-1 relative flex items-center justify-center w-full">
+                <div className="no-drag flex-1 relative flex items-center justify-center w-full">
                     {/* TEXT BLOCK */}
                     {data.type === 'text' && (
                         <TextTile data={data} isEditMode={isEditMode} isDebugMode={isDebugMode} />
