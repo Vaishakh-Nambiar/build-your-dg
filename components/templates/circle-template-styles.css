@@ -1,0 +1,296 @@
+/**
+ * Circle Template Styles
+ * 
+ * Global CSS utilities for circle template shape preservation across all screen sizes.
+ * These styles ensure that circle templates maintain their circular appearance
+ * with proper responsive scaling.
+ * 
+ * Requirements 5.5: Circle templates maintain their circular appearance at all sizes
+ * Requirements 5.2: Implement responsive circle scaling
+ */
+
+/* CSS Custom Properties for Circle Template Responsive Scaling */
+:root {
+  /* Base circle sizes for different breakpoints */
+  --circle-size-xs: clamp(60px, 15vw, 120px);
+  --circle-size-sm: clamp(80px, 12vw, 150px);
+  --circle-size-md: clamp(100px, 10vw, 200px);
+  --circle-size-lg: clamp(120px, 8vw, 250px);
+  --circle-size-xl: clamp(150px, 6vw, 300px);
+  
+  /* Circle template scaling factors */
+  --circle-scale-mobile: 0.8;
+  --circle-scale-tablet: 0.9;
+  --circle-scale-desktop: 1.0;
+  
+  /* Circle template transition timing */
+  --circle-transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* Base Circle Template Class */
+.circle-template {
+  /* Ensure perfect circular shape */
+  border-radius: 50% !important;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  
+  /* Prevent flex shrinking that could distort the circle */
+  flex-shrink: 0;
+  
+  /* Smooth transitions for responsive changes */
+  transition: var(--circle-transition);
+  
+  /* Ensure proper box sizing */
+  box-sizing: border-box;
+  
+  /* Position context for child elements */
+  position: relative;
+}
+
+/* Circle Template Container */
+.circle-template-container {
+  /* Center the circular content */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  /* Maintain square aspect ratio */
+  aspect-ratio: 1 / 1;
+  
+  /* Full size within grid cell */
+  width: 100%;
+  height: 100%;
+  
+  /* Minimum viable size */
+  min-width: 60px;
+  min-height: 60px;
+}
+
+/* Circle Template Content Wrapper */
+.circle-template-content {
+  /* Fill the circular container */
+  width: 100%;
+  height: 100%;
+  
+  /* Ensure circular clipping */
+  border-radius: 50%;
+  overflow: hidden;
+  
+  /* Center content */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  /* Smooth transitions */
+  transition: var(--circle-transition);
+}
+
+/* Responsive Circle Template Sizes */
+@media (max-width: 575px) {
+  .circle-template-responsive {
+    width: var(--circle-size-xs);
+    height: var(--circle-size-xs);
+    transform: scale(var(--circle-scale-mobile));
+  }
+}
+
+@media (min-width: 576px) and (max-width: 767px) {
+  .circle-template-responsive {
+    width: var(--circle-size-sm);
+    height: var(--circle-size-sm);
+    transform: scale(var(--circle-scale-mobile));
+  }
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  .circle-template-responsive {
+    width: var(--circle-size-md);
+    height: var(--circle-size-md);
+    transform: scale(var(--circle-scale-tablet));
+  }
+}
+
+@media (min-width: 992px) and (max-width: 1199px) {
+  .circle-template-responsive {
+    width: var(--circle-size-lg);
+    height: var(--circle-size-lg);
+    transform: scale(var(--circle-scale-tablet));
+  }
+}
+
+@media (min-width: 1200px) {
+  .circle-template-responsive {
+    width: var(--circle-size-xl);
+    height: var(--circle-size-xl);
+    transform: scale(var(--circle-scale-desktop));
+  }
+}
+
+/* Circle Template Image Specific Styles */
+.circle-template-image {
+  /* Ensure image fills circular container properly */
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  
+  /* Smooth scaling on hover */
+  transition: var(--circle-transition);
+}
+
+.circle-template-image:hover {
+  transform: scale(1.05);
+}
+
+/* Circle Template Video Specific Styles */
+.circle-template-video {
+  /* Ensure video fills circular container properly */
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  
+  /* Smooth transitions */
+  transition: var(--circle-transition);
+}
+
+/* Circle Template Controls Positioning */
+.circle-template-controls {
+  /* Position controls at the bottom center for circles */
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  
+  /* Ensure controls are visible */
+  z-index: 10;
+  
+  /* Flex layout for multiple controls */
+  display: flex;
+  gap: 8px;
+  
+  /* Smooth transitions */
+  transition: var(--circle-transition);
+}
+
+/* Circle Template Text Overlay */
+.circle-template-text {
+  /* Position text overlay at bottom center */
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  
+  /* Styling for readability */
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 500;
+  
+  /* Backdrop blur for modern look */
+  backdrop-filter: blur(8px);
+  
+  /* Ensure text doesn't break circle shape */
+  max-width: 80%;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Circle Template Debug Mode */
+.circle-template-debug {
+  /* Debug outline */
+  outline: 2px solid #ff0000;
+  outline-offset: 2px;
+}
+
+.circle-template-debug::before {
+  content: 'CIRCLE';
+  position: absolute;
+  top: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #ff0000;
+  color: white;
+  padding: 2px 6px;
+  font-size: 8px;
+  font-weight: bold;
+  border-radius: 4px;
+  z-index: 1000;
+}
+
+/* Utility Classes for Circle Template Integration */
+.force-circular {
+  border-radius: 50% !important;
+  aspect-ratio: 1 / 1 !important;
+  overflow: hidden !important;
+}
+
+.maintain-aspect-square {
+  aspect-ratio: 1 / 1;
+}
+
+.circle-safe-content {
+  /* Ensure content doesn't break out of circular bounds */
+  max-width: 70%;
+  max-height: 70%;
+  text-align: center;
+}
+
+/* Animation for Circle Template Transitions */
+@keyframes circle-scale-in {
+  from {
+    transform: scale(0);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.circle-template-animate-in {
+  animation: circle-scale-in 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* High DPI Display Optimizations */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .circle-template-image,
+  .circle-template-video {
+    /* Ensure crisp rendering on high DPI displays */
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+  }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  .circle-template,
+  .circle-template-content,
+  .circle-template-image,
+  .circle-template-video,
+  .circle-template-controls {
+    transition: none;
+  }
+  
+  .circle-template-animate-in {
+    animation: none;
+  }
+}
+
+/* Print Styles */
+@media print {
+  .circle-template {
+    /* Ensure circles print correctly */
+    -webkit-print-color-adjust: exact;
+    color-adjust: exact;
+  }
+  
+  .circle-template-controls {
+    /* Hide interactive controls in print */
+    display: none;
+  }
+}
