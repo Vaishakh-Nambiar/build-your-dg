@@ -102,7 +102,7 @@ export const Controls = ({
                                 { type: 'image' as BlockType, size: '3×3', desc: 'Photo' },
                                 { type: 'video' as BlockType, size: '4×3', desc: 'Video/GIF' },
                                 { type: 'project' as BlockType, size: '6×4', desc: 'Figma Style' },
-                                { type: 'status' as BlockType, size: '2×1', desc: 'Status banner' },
+                                { type: 'writing' as BlockType, size: '3×3', desc: 'Blog/Essay' },
                             ].map(({ type, size, desc }) => (
                                 <button
                                     key={type}

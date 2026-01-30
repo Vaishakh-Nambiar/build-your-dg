@@ -7,9 +7,10 @@ import {
     TextTile, 
     ThoughtTile, 
     QuoteTile, 
-    ImageTile, 
+    ImageTileBlock, 
     VideoTile, 
-    StatusTile, 
+    StatusTile,
+    WritingTileBlock, 
     ProjectTile 
 } from './tiles';
 import { getTypeChangeUpdates } from './garden/tileDefaults';
@@ -19,7 +20,7 @@ function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
 }
 
-export type BlockType = 'image' | 'text' | 'thought' | 'quote' | 'project' | 'status' | 'video';
+export type BlockType = 'image' | 'text' | 'thought' | 'quote' | 'project' | 'video' | 'writing' | 'status';
 
 export interface BlockData {
     id: string;
@@ -29,6 +30,7 @@ export interface BlockData {
     content?: string;
     imageUrl?: string;
     imageTag?: string;
+    caption?: string;
     status?: string;
     meta?: string;
     link?: string;
@@ -46,6 +48,33 @@ export interface BlockData {
     isTransparent?: boolean;
     // Video-specific properties
     videoShape?: 'rectangle' | 'circle';
+    // Project Tile Archetype properties
+    projectArchetype?: 'web-showcase' | 'mobile-app' | 'concept-editorial';
+    // Mobile app specific
+    appStoreUrl?: string;
+    platform?: 'ios' | 'android' | 'cross-platform';
+    // Concept/Editorial specific
+    poeticDescription?: string;
+    editorialStyle?: 'minimal' | 'classic' | 'modern';
+    // Writing/Blog specific
+    publishedAt?: Date | string;
+    excerpt?: string;
+    archetypeConfig?: {
+        // Web Showcase specific
+        uiPreviewMode?: 'embedded' | 'floating';
+        showWebMetadata?: boolean;
+        // Mobile App specific
+        phoneOrientation?: 'portrait' | 'landscape';
+        showPhoneMockup?: boolean;
+        phoneTiltAngle?: number;
+        // Concept/Editorial specific
+        poeticDescription?: string;
+        symbolicImageUrl?: string;
+        editorialSpacing?: 'compact' | 'generous';
+        // Common configuration
+        customBackground?: string;
+        customAccentColor?: string;
+    };
     x: number;
     y: number;
     w: number;
@@ -217,7 +246,7 @@ export const Block = React.forwardRef<HTMLDivElement, BlockProps>(({
                                 <div className="space-y-2">
                                     <label className="text-[10px] uppercase tracking-widest text-gray-400">Type</label>
                                     <div className="flex flex-wrap gap-2">
-                                        {(['text', 'image', 'video', 'quote', 'thought', 'project', 'status'] as BlockType[]).map(t => (
+                                        {(['text', 'image', 'video', 'quote', 'thought', 'project', 'writing'] as BlockType[]).map(t => (
                                             <button
                                                 key={t}
                                                 onClick={() => {
@@ -510,7 +539,7 @@ export const Block = React.forwardRef<HTMLDivElement, BlockProps>(({
 
                     {/* IMAGE BLOCK */}
                     {data.type === 'image' && (
-                        <ImageTile data={data} isEditMode={isEditMode} isDebugMode={isDebugMode} />
+                        <ImageTileBlock data={data} isEditMode={isEditMode} isDebugMode={isDebugMode} />
                     )}
 
                     {/* VIDEO BLOCK */}
@@ -526,6 +555,11 @@ export const Block = React.forwardRef<HTMLDivElement, BlockProps>(({
                     {/* STATUS BLOCK */}
                     {data.type === 'status' && (
                         <StatusTile data={data} isEditMode={isEditMode} isDebugMode={isDebugMode} />
+                    )}
+
+                    {/* WRITING BLOCK */}
+                    {data.type === 'writing' && (
+                        <WritingTileBlock data={data} isEditMode={isEditMode} isDebugMode={isDebugMode} />
                     )}
                 </div>
             </div>

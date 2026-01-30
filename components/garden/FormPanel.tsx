@@ -8,6 +8,7 @@ import { BlockData, BlockType } from '../Block';
 import { validateTileData, validateSingleField, validateFileUpload, validateFormSubmission, getFieldDisplayName, ValidationError } from './validation';
 import { getTypeChangeUpdates } from './tileDefaults';
 import { STANDARD_TILE_SIZES } from './tileSizes';
+import { ProjectArchetype, getOptimalSizesForArchetype } from '../tiles/archetype-utils';
 
 function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
@@ -32,7 +33,7 @@ const TILE_TYPES: { type: BlockType; label: string; description: string }[] = [
     { type: 'image', label: 'Image', description: 'Photo or image' },
     { type: 'video', label: 'Video', description: 'Video or GIF' },
     { type: 'project', label: 'Project', description: 'Project showcase' },
-    { type: 'status', label: 'Status', description: 'Status banner' }
+    { type: 'writing', label: 'Writing', description: 'Blog post or essay' }
 ];
 
 export const FormPanel: React.FC<FormPanelProps> = ({
@@ -173,7 +174,7 @@ export const FormPanel: React.FC<FormPanelProps> = ({
 
             <div>
                 <label htmlFor="title-input" className="block text-sm font-medium text-gray-700 mb-2">
-                    Title {(['project', 'status'].includes(tileData.type)) && <span className="text-red-500">*</span>}
+                    Title {(['project', 'writing'].includes(tileData.type)) && <span className="text-red-500">*</span>}
                 </label>
                 <input
                     id="title-input"
@@ -262,6 +263,44 @@ export const FormPanel: React.FC<FormPanelProps> = ({
                 </div>
             </div>
 
+            {/* Project Archetype Selector */}
+            <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Project Type
+                </label>
+                <div className="grid grid-cols-1 gap-2">
+                    {(['web-showcase', 'mobile-app', 'concept-editorial'] as ProjectArchetype[]).map((archetype) => (
+                        <label key={archetype} className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                            <input
+                                type="radio"
+                                name="projectArchetype"
+                                value={archetype}
+                                checked={tileData.projectArchetype === archetype}
+                                onChange={(e) => {
+                                    handleFieldChange('projectArchetype', e.target.value);
+                                    // Show optimal sizes for this archetype
+                                    const optimalSizes = getOptimalSizesForArchetype(archetype as ProjectArchetype);
+                                    console.log(`Optimal sizes for ${archetype}:`, optimalSizes);
+                                }}
+                                className="text-blue-600"
+                            />
+                            <div>
+                                <div className="font-medium text-sm">
+                                    {archetype === 'web-showcase' && 'Web Showcase'}
+                                    {archetype === 'mobile-app' && 'Mobile App'}
+                                    {archetype === 'concept-editorial' && 'Concept/Editorial'}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                    {archetype === 'web-showcase' && 'Landscape layout with UI preview'}
+                                    {archetype === 'mobile-app' && 'Portrait layout with phone mockup'}
+                                    {archetype === 'concept-editorial' && 'Compact layout with editorial styling'}
+                                </div>
+                            </div>
+                        </label>
+                    ))}
+                </div>
+            </div>
+
             {/* Showcase Settings */}
             <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -336,6 +375,75 @@ export const FormPanel: React.FC<FormPanelProps> = ({
                     </div>
                 </div>
             </div>
+
+            {/* Archetype-Specific Fields */}
+            {tileData.projectArchetype === 'mobile-app' && (
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Mobile App Settings
+                    </label>
+                    <div className="space-y-3">
+                        <div>
+                            <label className="block text-xs text-gray-600 mb-1">App Store URL (optional)</label>
+                            <input
+                                type="url"
+                                value={tileData.appStoreUrl || ''}
+                                onChange={(e) => handleFieldChange('appStoreUrl', e.target.value)}
+                                onBlur={() => handleFieldBlur('appStoreUrl')}
+                                className={getInputClassName('appStoreUrl', "w-full px-3 py-2 border rounded-lg transition-all text-sm")}
+                                placeholder="https://apps.apple.com/..."
+                            />
+                            <FieldError fieldName="appStoreUrl" />
+                        </div>
+                        <div>
+                            <label className="block text-xs text-gray-600 mb-1">Platform</label>
+                            <select
+                                value={tileData.platform || 'ios'}
+                                onChange={(e) => handleFieldChange('platform', e.target.value)}
+                                className="w-full px-3 py-2 border rounded-lg transition-all text-sm"
+                            >
+                                <option value="ios">iOS</option>
+                                <option value="android">Android</option>
+                                <option value="cross-platform">Cross-Platform</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {tileData.projectArchetype === 'concept-editorial' && (
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Editorial Settings
+                    </label>
+                    <div className="space-y-3">
+                        <div>
+                            <label className="block text-xs text-gray-600 mb-1">Poetic Description</label>
+                            <textarea
+                                value={tileData.poeticDescription || ''}
+                                onChange={(e) => handleFieldChange('poeticDescription', e.target.value)}
+                                onBlur={() => handleFieldBlur('poeticDescription')}
+                                rows={2}
+                                className={getInputClassName('poeticDescription', "w-full px-3 py-2 border rounded-lg transition-all text-sm resize-none")}
+                                placeholder="A brief, poetic description of the concept..."
+                            />
+                            <FieldError fieldName="poeticDescription" />
+                        </div>
+                        <div>
+                            <label className="block text-xs text-gray-600 mb-1">Editorial Style</label>
+                            <select
+                                value={tileData.editorialStyle || 'minimal'}
+                                onChange={(e) => handleFieldChange('editorialStyle', e.target.value)}
+                                className="w-full px-3 py-2 border rounded-lg transition-all text-sm"
+                            >
+                                <option value="minimal">Minimal</option>
+                                <option value="classic">Classic</option>
+                                <option value="modern">Modern</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 
@@ -568,6 +676,41 @@ export const FormPanel: React.FC<FormPanelProps> = ({
         </div>
     );
 
+    const renderWritingFields = () => (
+        <div className="space-y-4">
+            {/* Published Date */}
+            <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Published Date <span className="text-red-500">*</span>
+                </label>
+                <input
+                    type="date"
+                    value={tileData.publishedAt ? (typeof tileData.publishedAt === 'string' ? tileData.publishedAt.split('T')[0] : tileData.publishedAt.toISOString().split('T')[0]) : ''}
+                    onChange={(e) => handleFieldChange('publishedAt', e.target.value)}
+                    onBlur={() => handleFieldBlur('publishedAt')}
+                    className={getInputClassName('publishedAt', "w-full px-3 py-2 border rounded-lg transition-all text-sm")}
+                />
+                <FieldError fieldName="publishedAt" />
+            </div>
+
+            {/* Excerpt */}
+            <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Excerpt <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                    value={tileData.excerpt || ''}
+                    onChange={(e) => handleFieldChange('excerpt', e.target.value)}
+                    onBlur={() => handleFieldBlur('excerpt')}
+                    rows={4}
+                    className={getInputClassName('excerpt', "w-full px-3 py-2 border rounded-lg transition-all text-sm resize-none")}
+                    placeholder="A brief excerpt or summary of your writing..."
+                />
+                <FieldError fieldName="excerpt" />
+            </div>
+        </div>
+    );
+
     const renderQuoteFields = () => (
         <div className="space-y-4">
             {/* Rich Text Editing for Quote */}
@@ -758,8 +901,10 @@ export const FormPanel: React.FC<FormPanelProps> = ({
             case 'thought':
                 return renderThoughtFields();
             case 'status':
-            default:
                 return null; // Common fields are sufficient for status tiles
+            case 'writing':
+                return renderWritingFields();
+            default:
         }
     };
 
