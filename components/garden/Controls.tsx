@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Settings2, Check, Grid, RotateCcw, Bug, Maximize2, Minimize2 } from 'lucide-react';
+import { Plus, Settings2, Check, Grid, RotateCcw, Bug, Maximize2, Minimize2, Eye } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { BlockType } from '../Block';
@@ -22,6 +22,7 @@ interface ControlsProps {
     setSidePadding: (val: number) => void;
     onAddBlock: (type: BlockType) => void;
     onResetGarden: () => void;
+    onShowTiles?: () => void;
 }
 
 export const Controls = ({
@@ -34,7 +35,8 @@ export const Controls = ({
     sidePadding,
     setSidePadding,
     onAddBlock,
-    onResetGarden
+    onResetGarden,
+    onShowTiles
 }: ControlsProps) => {
     const [showAddMenu, setShowAddMenu] = useState(false);
 
@@ -95,7 +97,7 @@ export const Controls = ({
                                 { type: 'quote' as BlockType, size: '3×3', desc: 'Quote block' },
                                 { type: 'image' as BlockType, size: '3×3', desc: 'Photo' },
                                 { type: 'video' as BlockType, size: '4×3', desc: 'Video/GIF' },
-                                { type: 'project' as BlockType, size: '4×4', desc: 'Showcase' },
+                                { type: 'project' as BlockType, size: '6×4', desc: 'Figma Style' },
                                 { type: 'status' as BlockType, size: '2×1', desc: 'Status banner' },
                             ].map(({ type, size, desc }) => (
                                 <button
@@ -131,6 +133,22 @@ export const Controls = ({
 
             {/* Right: Grid, Edit, and Padding Control */}
             <div className="flex items-center gap-2 sm:gap-4 pointer-events-auto">
+                {/* Show Tiles Button - Only in Debug Mode */}
+                {isDebugMode && onShowTiles && (
+                    <motion.button
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                        onClick={onShowTiles}
+                        className="group relative flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-full bg-purple-500 text-white shadow-xl transition-all hover:bg-purple-600 border border-black/5"
+                        title="Show All Tiles"
+                    >
+                        <Eye size={18} className="sm:w-[22px] sm:h-[22px]" />
+                        <span className="absolute right-12 sm:right-16 whitespace-nowrap bg-black text-white px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity hidden sm:block">
+                            Show Tiles
+                        </span>
+                    </motion.button>
+                )}
+
                 {/* Padding Control - Hidden on mobile */}
                 <div className="hidden sm:flex items-center gap-3 bg-white rounded-full px-4 h-14 shadow-xl border border-black/5 mr-2">
                     <button

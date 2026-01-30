@@ -7,6 +7,8 @@ import { Onboarding } from './Onboarding';
 import { Navbar } from './garden/Navbar';
 import { GridEngine } from './garden/GridEngine';
 import { Controls } from './garden/Controls';
+import { SidebarEditor } from './garden/SidebarEditor';
+import { TileShowcase } from './TileShowcase';
 
 // --- CONSTANTS ---
 const DEFAULT_BLOCKS: BlockData[] = [
@@ -52,6 +54,9 @@ export default function GardenBuilder() {
     const [isDebugMode, setIsDebugMode] = useState(false);
     const [sidePadding, setSidePadding] = useState(64);
     const [filter, setFilter] = useState<string | null>(null);
+    const [showTileShowcase, setShowTileShowcase] = useState(false);
+    const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [selectedTile, setSelectedTile] = useState<BlockData | null>(null);
 
     // --- INITIALIZATION ---
     useEffect(() => {
@@ -136,7 +141,7 @@ export default function GardenBuilder() {
             case 'video':
                 w = 4; h = 3; break;
             case 'project':
-                w = 4; h = 4; break;
+                w = 6; h = 4; break;
             case 'status':
                 w = 2; h = 1; break;
             default:
@@ -163,6 +168,13 @@ export default function GardenBuilder() {
             newBlock.isMuted = true;
         }
 
+        if (type === 'project') {
+            newBlock.category = 'Projects';
+            newBlock.title = 'Fields Of Chess';
+            newBlock.showcaseBorderColor = '#cc2727';
+            newBlock.imageUrl = 'https://images.unsplash.com/photo-1551650975-87deedd944c3?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80';
+        }
+
         setBlocks([...blocks, newBlock]);
 
         setTimeout(() => {
@@ -173,6 +185,29 @@ export default function GardenBuilder() {
     const categories = useMemo(() => {
         return Array.from(new Set(blocks.map(b => b.category.split(' · ')[0])));
     }, [blocks]);
+
+    // Handle tile editing with sidebar
+    const handleEditTile = (tileData: BlockData) => {
+        setSelectedTile(tileData);
+        setSidebarOpen(true);
+    };
+
+    const handleSaveTile = (updatedTile: BlockData) => {
+        setBlocks(prevBlocks => 
+            prevBlocks.map(block => 
+                block.id === updatedTile.id ? updatedTile : block
+            )
+        );
+    };
+
+    const handleDeleteTile = (tileId: string) => {
+        setBlocks(prevBlocks => prevBlocks.filter(block => block.id !== tileId));
+    };
+
+    const handleCloseSidebar = () => {
+        setSidebarOpen(false);
+        setSelectedTile(null);
+    };
 
     if (!isMount) return <div className="min-h-screen bg-[#F9F9F9]" />;
 
@@ -214,11 +249,12 @@ export default function GardenBuilder() {
                     isEditMode={isEditMode}
                     currentLayout={blocks.map(b => ({ i: b.id, x: b.x, y: b.y, w: b.w, h: b.h }))}
                     onLayoutChange={(newLayout) => {
-                        const updated = blocks.map(b => {
-                            const l = newLayout.find(li => li.i === b.id);
-                            return l ? { ...b, x: l.x, y: l.y, w: l.w, h: l.h } : b;
-                        });
-                        if (JSON.stringify(updated) !== JSON.stringify(blocks)) {
+                        // Only update when user actually drags items in edit mode (resizing is disabled)
+                        if (isEditMode) {
+                            const updated = blocks.map(b => {
+                                const l = newLayout.find(li => li.i === b.id);
+                                return l ? { ...b, x: l.x, y: l.y, w: l.w, h: l.h } : b;
+                            });
                             setBlocks(updated);
                         }
                     }}
@@ -246,6 +282,7 @@ export default function GardenBuilder() {
                                     isDimmed={!!(filter && !block.category.startsWith(filter))}
                                     onDelete={(id) => setBlocks(p => p.filter(b => b.id !== id))}
                                     onUpdate={(id, d) => setBlocks(p => p.map(b => b.id === id ? { ...b, ...d } : b))}
+                                    onEdit={() => handleEditTile(block)}
                                 />
                             </motion.div>
                         </div>
@@ -270,6 +307,26 @@ export default function GardenBuilder() {
                         localStorage.setItem('garden-blocks', JSON.stringify(DEFAULT_BLOCKS));
                     }
                 }}
+                onShowTiles={() => setShowTileShowcase(true)}
+            />
+
+            {/* TILE SHOWCASE MODAL */}
+            <AnimatePresence>
+                {showTileShowcase && (
+                    <TileShowcase
+                        isOpen={showTileShowcase}
+                        onClose={() => setShowTileShowcase(false)}
+                    />
+                )}
+            </AnimatePresence>
+
+            {/* SIDEBAR EDITOR */}
+            <SidebarEditor
+                isOpen={sidebarOpen}
+                onClose={handleCloseSidebar}
+                currentTile={selectedTile}
+                onSave={handleSaveTile}
+                onDelete={handleDeleteTile}
             />
         </div>
     );

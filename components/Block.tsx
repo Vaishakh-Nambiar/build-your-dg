@@ -1,8 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowUpRight, Trash2, X, Quote, GripVertical, Edit3, Volume2, VolumeX, Repeat, Check } from 'lucide-react';
+import { ArrowUpRight, Trash2, X, GripVertical, Edit3, Check } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { 
+    TextTile, 
+    ThoughtTile, 
+    QuoteTile, 
+    ImageTile, 
+    VideoTile, 
+    StatusTile, 
+    ProjectTile 
+} from './tiles';
 
 function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
@@ -28,6 +37,9 @@ export interface BlockData {
     videoUrl?: string;
     isLooping?: boolean;
     isMuted?: boolean;
+    // Project-specific properties (for your Figma design)
+    showcaseBackground?: string;
+    showcaseBorderColor?: string;
     x: number;
     y: number;
     w: number;
@@ -41,6 +53,7 @@ interface BlockProps extends React.HTMLAttributes<HTMLDivElement> {
     isDimmed?: boolean;
     onDelete: (id: string) => void;
     onUpdate: (id: string, data: Partial<BlockData>) => void;
+    onEdit?: () => void;
 }
 
 const PASTEL_COLORS = [
@@ -55,6 +68,7 @@ export const Block = React.forwardRef<HTMLDivElement, BlockProps>(({
     isDimmed = false,
     onDelete,
     onUpdate,
+    onEdit,
     style,
     className,
     ...props
@@ -74,7 +88,7 @@ export const Block = React.forwardRef<HTMLDivElement, BlockProps>(({
 
     const getContainerClasses = () => {
         const base = "group relative h-full w-full overflow-hidden transition-[background-color,border-color,opacity,box-shadow,transform] duration-700 ease-[cubic-bezier(0.23,1,0.32,1)]";
-        const border = isEditMode ? "border-2 border-dashed border-black/20" : "border border-black/[0.06] hover:shadow-2xl hover:shadow-black/5";
+        const border = isEditMode ? "border-1 border-dashed border-black/20" : "border border-black/[0.06] hover:shadow-2xl hover:shadow-black/5";
 
         if (data.type === 'thought') {
             return cn(
@@ -89,14 +103,14 @@ export const Block = React.forwardRef<HTMLDivElement, BlockProps>(({
         if (data.type === 'project') {
             return cn(
                 base,
-                "rounded-[24px] bg-[#F9F9F9] shadow-sm",
+                "rounded-[8px] bg-[#F9F9F9] shadow-sm",
                 isEditMode ? "border-2 border-dashed border-black/20" : "border border-black/5",
                 !isEditMode && "hover:shadow-2xl hover:shadow-black/5 hover:-translate-y-1",
                 isDebugMode && "ring-2 ring-red-500 ring-inset"
             );
         }
 
-        return cn(base, "rounded-[24px] bg-white shadow-sm", border, isDebugMode && "ring-2 ring-red-500 ring-inset");
+        return cn(base, "rounded-[8px] bg-white shadow-sm", border, isDebugMode && "ring-2 ring-red-500 ring-inset");
     };
 
     const combinedStyle: React.CSSProperties = {
@@ -117,12 +131,6 @@ export const Block = React.forwardRef<HTMLDivElement, BlockProps>(({
             }}
             {...props}
         >
-            {data.type === 'quote' && (
-                <div className="absolute inset-0 pointer-events-none select-none flex items-center justify-center opacity-[0.03]">
-                    <Quote size={200} className="text-black" />
-                </div>
-            )}
-
             {/* GRIP HANDLE - 6-DOT MOVEMENT CONTROL */}
             {isEditMode && (
                 <div
@@ -139,7 +147,11 @@ export const Block = React.forwardRef<HTMLDivElement, BlockProps>(({
                     <button
                         onClick={(e) => {
                             e.stopPropagation();
-                            setShowSettings(true);
+                            if (onEdit) {
+                                onEdit();
+                            } else {
+                                setShowSettings(true);
+                            }
                         }}
                         className="flex h-8 w-8 items-center justify-center rounded-full bg-white/90 backdrop-blur-sm hover:bg-blue-50 hover:text-blue-600 transition-all shadow-lg border border-black/10"
                         title="Edit"
@@ -163,7 +175,7 @@ export const Block = React.forwardRef<HTMLDivElement, BlockProps>(({
 
             {/* SETTINGS OVERLAY - FIXED POSITION FOR SMALL TILES */}
             <AnimatePresence>
-                {showSettings && isEditMode && (
+                {showSettings && isEditMode && !onEdit && (
                     <>
                         {/* Backdrop */}
                         <motion.div
@@ -331,6 +343,33 @@ export const Block = React.forwardRef<HTMLDivElement, BlockProps>(({
                                             </div>
                                         </>
                                     )}
+                                    {data.type === 'project' && (
+                                        <>
+                                            <input
+                                                type="text"
+                                                value={data.showcaseBackground || ''}
+                                                onChange={(e) => onUpdate(data.id, { showcaseBackground: e.target.value })}
+                                                className="w-full rounded-lg border p-2 text-xs focus:ring-2 focus:ring-black focus:border-black transition-all"
+                                                placeholder="Background Image URL (optional)"
+                                            />
+                                            <div className="flex items-center gap-4">
+                                                <label className="text-xs text-gray-600">Border Color:</label>
+                                                <input
+                                                    type="color"
+                                                    value={data.showcaseBorderColor || '#cc2727'}
+                                                    onChange={(e) => onUpdate(data.id, { showcaseBorderColor: e.target.value })}
+                                                    className="w-12 h-8 rounded border cursor-pointer"
+                                                />
+                                                <input
+                                                    type="text"
+                                                    value={data.showcaseBorderColor || '#cc2727'}
+                                                    onChange={(e) => onUpdate(data.id, { showcaseBorderColor: e.target.value })}
+                                                    className="flex-1 rounded-lg border p-2 text-xs focus:ring-2 focus:ring-black focus:border-black transition-all"
+                                                    placeholder="#cc2727"
+                                                />
+                                            </div>
+                                        </>
+                                    )}
                                 </div>
                             </div>
 
@@ -377,213 +416,42 @@ export const Block = React.forwardRef<HTMLDivElement, BlockProps>(({
                 <div className="flex-1 relative flex items-center justify-center w-full">
                     {/* TEXT BLOCK */}
                     {data.type === 'text' && (
-                        <div className="flex flex-col h-full justify-center w-full text-left">
-                            <h3 className="font-serif-display text-lg sm:text-xl lg:text-2xl font-medium leading-tight text-gray-900 mb-2 sm:mb-3">
-                                {data.title}
-                            </h3>
-                            <p className="line-clamp-6 text-xs sm:text-sm leading-relaxed text-gray-500 font-sans">
-                                {data.content}
-                            </p>
-                            {data.meta && <div className="mt-3 sm:mt-4 text-[9px] sm:text-[10px] text-gray-400">{data.meta}</div>}
-                        </div>
+                        <TextTile data={data} isEditMode={isEditMode} isDebugMode={isDebugMode} />
                     )}
 
                     {/* STICKY NOTE */}
                     {data.type === 'thought' && (
-                        <div className="flex flex-col h-full items-center justify-center text-center p-1 sm:p-2">
-                            <p className="font-hand text-lg sm:text-2xl lg:text-3xl leading-snug text-gray-800 rotate-[-1deg]">
-                                {data.content || data.title}
-                            </p>
-                        </div>
+                        <ThoughtTile data={data} isEditMode={isEditMode} isDebugMode={isDebugMode} />
                     )}
 
                     {/* QUOTE BLOCK */}
                     {data.type === 'quote' && (
-                        <div className="flex flex-col h-full items-center justify-center text-center relative z-10">
-                            <p className="font-serif-display text-lg sm:text-xl lg:text-2xl xl:text-3xl italic leading-tight text-black mb-4 sm:mb-6">
-                                "{data.content}"
-                            </p>
-                            {data.author && (
-                                <div className="absolute bottom-0 right-0 text-[9px] sm:text-[10px] uppercase tracking-widest text-gray-500">
-                                    — {data.author}
-                                </div>
-                            )}
-                        </div>
+                        <QuoteTile data={data} isEditMode={isEditMode} isDebugMode={isDebugMode} />
                     )}
 
-                    {/* PROJECT TILE - ADAPTIVE PREMIUM DESIGN */}
+                    {/* PROJECT TILE - Your Figma Design */}
                     {data.type === 'project' && (
-                        <div className="flex flex-col h-full w-full relative pointer-events-auto">
-                            {/* Top Bar: Type · Title + Arrow */}
-                            <div className="flex items-start justify-between mb-4 relative z-20">
-                                <div className="flex-1">
-                                    <p
-                                        className="text-xs text-[#888] capitalize"
-                                        style={{
-                                            fontFamily: 'Inter, sans-serif',
-                                            fontSize: '12px',
-                                            letterSpacing: '0.05em'
-                                        }}
-                                    >
-                                        {data.category} · {data.title}
-                                    </p>
-                                </div>
-                                {data.link && (
-                                    <motion.a
-                                        href={data.link}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        whileHover={{ scale: 1.1, y: -2, boxShadow: '0 8px 16px rgba(0,0,0,0.12)' }}
-                                        whileTap={{ scale: 0.95 }}
-                                        className="flex h-8 w-8 items-center justify-center rounded-full bg-white shadow-md transition-all border border-black/5 pointer-events-auto"
-                                        onClick={(e) => e.stopPropagation()}
-                                        style={{
-                                            width: '32px',
-                                            height: '32px'
-                                        }}
-                                    >
-                                        <ArrowUpRight className="text-black/60" style={{ width: '14px', height: '14px' }} />
-                                    </motion.a>
-                                )}
-                            </div>
-
-                            {/* Floating Image Container - Adaptive Padding */}
-                            <div
-                                className="flex-1 flex items-center justify-center overflow-hidden"
-                                style={{
-                                    padding: data.w >= 6 ? '40px 0' : '20px 0'
-                                }}
-                            >
-                                <motion.div
-                                    className="relative w-full h-full flex items-center justify-center"
-                                    whileHover={{ scale: 1.05 }}
-                                    transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
-                                >
-                                    {data.imageUrl ? (
-                                        <img
-                                            src={data.imageUrl}
-                                            alt={data.title || 'Project'}
-                                            className="object-contain pointer-events-none"
-                                            style={{
-                                                filter: 'drop-shadow(0 20px 30px rgba(0,0,0,0.08))',
-                                                maxWidth: '100%',
-                                                maxHeight: data.w >= 6 ? '70%' : '100%',
-                                                height: data.w >= 6 ? '70%' : 'auto',
-                                            }}
-                                        />
-                                    ) : (
-                                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl border border-black/5">
-                                            <span className="text-xs text-gray-400 uppercase tracking-widest">Add Image</span>
-                                        </div>
-                                    )}
-                                </motion.div>
-                            </div>
-
-                            {/* Optional Content/Description - Only show if w >= 6 */}
-                            {data.w >= 6 && data.content && (
-                                <div className="mt-auto pt-4 relative z-20">
-                                    <p className="text-sm text-gray-500 leading-relaxed line-clamp-2">
-                                        {data.content}
-                                    </p>
-                                </div>
-                            )}
-                        </div>
+                        <ProjectTile data={data} isEditMode={isEditMode} isDebugMode={isDebugMode} />
                     )}
 
-                    {/* IMAGE BLOCK - POLAROID STYLE */}
-                    {data.type === 'image' && data.imageUrl && (
-                        <div className={cn(
-                            "absolute inset-0 z-0 transition-transform duration-700 hover:scale-105 overflow-hidden flex flex-col items-center justify-center",
-                            data.isPolaroid
-                                ? "bg-white shadow-xl rotate-1 p-4 pb-12"
-                                : "rounded-t-lg"
-                        )}>
-                            <img
-                                src={data.imageUrl}
-                                alt={data.title || "Gallery Image"}
-                                className={cn(
-                                    "w-full h-full",
-                                    data.objectFit === 'contain' ? "object-contain bg-gray-50" : "object-cover",
-                                    data.isPolaroid && "border-[8px] border-white shadow-inner"
-                                )}
-                            />
-                            {data.isPolaroid && (
-                                <div className="absolute bottom-0 left-0 right-0 h-10 w-full bg-white flex items-center justify-between px-4 pb-1">
-                                    <span className="font-hand text-lg text-gray-600 truncate">
-                                        {data.title || 'Untitled'}
-                                    </span>
-                                    <span className="text-[8px] uppercase tracking-widest text-gray-400 shrink-0">
-                                        {data.imageTag || 'Photo'}
-                                    </span>
-                                </div>
-                            )}
-                            {!data.isPolaroid && data.imageTag && (
-                                <div className="absolute bottom-4 left-4 rounded-md bg-black/30 px-2 py-1 text-[10px] font-medium text-white backdrop-blur-md">
-                                    {data.imageTag}
-                                </div>
-                            )}
-                        </div>
+                    {/* IMAGE BLOCK */}
+                    {data.type === 'image' && (
+                        <ImageTile data={data} isEditMode={isEditMode} isDebugMode={isDebugMode} />
                     )}
 
-                    {/* VIDEO BLOCK - WITH CONTROLS */}
-                    {data.type === 'video' && data.videoUrl && (
-                        <div className="absolute inset-0 z-0 overflow-hidden rounded-lg bg-black">
-                            <video
-                                src={data.videoUrl}
-                                className="w-full h-full object-cover"
-                                loop={data.isLooping !== false}
-                                muted={data.isMuted !== false}
-                                autoPlay
-                                playsInline
-                            />
-                            {!isEditMode && (
-                                <div className="absolute bottom-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            onUpdate(data.id, { isLooping: !data.isLooping });
-                                        }}
-                                        className={cn(
-                                            "flex h-8 w-8 items-center justify-center rounded-full backdrop-blur-md transition-all shadow-lg border pointer-events-auto",
-                                            data.isLooping !== false ? "bg-white/90 text-black" : "bg-black/50 text-white"
-                                        )}
-                                        title={data.isLooping !== false ? "Loop On" : "Loop Off"}
-                                    >
-                                        <Repeat size={14} />
-                                    </button>
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            onUpdate(data.id, { isMuted: !data.isMuted });
-                                        }}
-                                        className={cn(
-                                            "flex h-8 w-8 items-center justify-center rounded-full backdrop-blur-md transition-all shadow-lg border pointer-events-auto",
-                                            data.isMuted !== false ? "bg-black/50 text-white" : "bg-white/90 text-black"
-                                        )}
-                                        title={data.isMuted !== false ? "Unmute" : "Mute"}
-                                    >
-                                        {data.isMuted !== false ? <VolumeX size={14} /> : <Volume2 size={14} />}
-                                    </button>
-                                </div>
-                            )}
-                        </div>
+                    {/* VIDEO BLOCK */}
+                    {data.type === 'video' && (
+                        <VideoTile 
+                            data={data} 
+                            isEditMode={isEditMode} 
+                            isDebugMode={isDebugMode}
+                            onUpdate={onUpdate}
+                        />
                     )}
 
                     {/* STATUS BLOCK */}
                     {data.type === 'status' && (
-                        <div className="flex flex-col h-full w-full text-left">
-                            <div className="flex gap-2 mb-2 sm:mb-3">
-                                {data.status && (
-                                    <span className="inline-flex items-center rounded-sm bg-orange-100 px-1.5 py-0.5 text-[8px] sm:text-[9px] font-bold uppercase tracking-wide text-orange-600">
-                                        {data.status}
-                                    </span>
-                                )}
-                            </div>
-                            <h3 className="font-serif-display text-2xl sm:text-3xl lg:text-4xl font-normal leading-none tracking-tight text-black">
-                                {data.title}
-                            </h3>
-                            {data.content && <p className="mt-1 sm:mt-2 text-[10px] sm:text-xs text-gray-500">{data.content}</p>}
-                        </div>
+                        <StatusTile data={data} isEditMode={isEditMode} isDebugMode={isDebugMode} />
                     )}
                 </div>
             </div>
