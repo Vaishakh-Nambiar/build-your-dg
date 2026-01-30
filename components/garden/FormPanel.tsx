@@ -6,6 +6,8 @@ import { twMerge } from 'tailwind-merge';
 import { AlertCircle } from 'lucide-react';
 import { BlockData, BlockType } from '../Block';
 import { validateTileData, validateSingleField, validateFileUpload, validateFormSubmission, getFieldDisplayName, ValidationError } from './validation';
+import { getTypeChangeUpdates } from './tileDefaults';
+import { STANDARD_TILE_SIZES } from './tileSizes';
 
 function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
@@ -519,6 +521,40 @@ export const FormPanel: React.FC<FormPanelProps> = ({
                         </label>
                     </div>
                     
+                    {/* Video Shape Options */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Video Shape
+                        </label>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => onUpdate({ videoShape: 'rectangle' })}
+                                className={cn(
+                                    "px-4 py-2 rounded-lg text-sm font-medium transition-all",
+                                    (tileData.videoShape || 'rectangle') === 'rectangle'
+                                        ? "bg-black text-white"
+                                        : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+                                )}
+                            >
+                                Rectangle
+                            </button>
+                            <button
+                                onClick={() => onUpdate({ videoShape: 'circle' })}
+                                className={cn(
+                                    "px-4 py-2 rounded-lg text-sm font-medium transition-all",
+                                    tileData.videoShape === 'circle'
+                                        ? "bg-black text-white"
+                                        : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+                                )}
+                            >
+                                Circle
+                            </button>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                            Circle shape works best with square aspect ratio videos
+                        </p>
+                    </div>
+                    
                     <div className="text-xs text-gray-500 bg-gray-50 p-3 rounded-lg">
                         <p className="font-medium mb-1">💡 Playback Tips:</p>
                         <ul className="space-y-1">
@@ -628,6 +664,27 @@ export const FormPanel: React.FC<FormPanelProps> = ({
                 />
                 <FieldError fieldName="meta" />
             </div>
+
+            {/* Background Options */}
+            <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Background Style
+                </label>
+                <div className="space-y-3">
+                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                        <input
+                            type="checkbox"
+                            checked={tileData.isTransparent || false}
+                            onChange={() => onUpdate({ isTransparent: !tileData.isTransparent })}
+                            className="rounded border-gray-300 text-black focus:ring-black"
+                        />
+                        Transparent background
+                    </label>
+                    <p className="text-xs text-gray-500">
+                        When enabled, the text will appear without a background, blending with the garden layout
+                    </p>
+                </div>
+            </div>
         </div>
     );
 
@@ -717,7 +774,10 @@ export const FormPanel: React.FC<FormPanelProps> = ({
                     {TILE_TYPES.map(({ type, label, description }) => (
                         <button
                             key={type}
-                            onClick={() => onUpdate({ type })}
+                            onClick={() => {
+                                const updates = getTypeChangeUpdates(type, tileData);
+                                onUpdate(updates);
+                            }}
                             className={cn(
                                 "p-3 rounded-lg border text-left transition-all text-sm",
                                 tileData.type === type
@@ -735,6 +795,38 @@ export const FormPanel: React.FC<FormPanelProps> = ({
                         </button>
                     ))}
                 </div>
+            </div>
+
+            {/* Tile Size Selection */}
+            <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                    Tile Size
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                    {STANDARD_TILE_SIZES.map(size => (
+                        <button
+                            key={`${size.w}x${size.h}`}
+                            onClick={() => onUpdate({ w: size.w, h: size.h })}
+                            className={cn(
+                                "p-3 rounded-lg border text-left transition-all text-sm",
+                                tileData.w === size.w && tileData.h === size.h
+                                    ? "bg-black text-white border-black"
+                                    : "bg-white hover:bg-gray-50 border-gray-300"
+                            )}
+                        >
+                            <div className="font-medium font-mono">{size.label}</div>
+                            <div className={cn(
+                                "text-xs mt-1",
+                                tileData.w === size.w && tileData.h === size.h ? "text-gray-300" : "text-gray-500"
+                            )}>
+                                {size.desc}
+                            </div>
+                        </button>
+                    ))}
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                    💡 Width × Height in grid units. Larger sizes work better for content-rich tiles.
+                </p>
             </div>
 
             {/* Color Selection */}

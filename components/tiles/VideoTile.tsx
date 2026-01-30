@@ -13,11 +13,19 @@ interface VideoTileProps {
 export const VideoTile: React.FC<VideoTileProps> = ({ data, isEditMode, isDebugMode, onUpdate }) => {
     if (!data.videoUrl) return null;
 
+    const isCircular = data.videoShape === 'circle';
+
     return (
-        <div className="absolute inset-0 z-0 overflow-hidden rounded-lg bg-black">
+        <div className={clsx(
+            "absolute inset-0 z-0 overflow-hidden bg-black",
+            isCircular ? "rounded-full" : "rounded-lg"
+        )}>
             <video
                 src={data.videoUrl}
-                className="w-full h-full object-cover"
+                className={clsx(
+                    "w-full h-full",
+                    isCircular ? "object-cover rounded-full" : "object-cover"
+                )}
                 loop={data.isLooping !== false}
                 muted={data.isMuted !== false}
                 autoPlay

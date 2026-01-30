@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Settings2, Check, Grid, RotateCcw, Bug, Maximize2, Minimize2, Eye } from 'lucide-react';
+import { Plus, Settings2, Check, Grid, RotateCcw, Bug, Maximize2, Minimize2, Eye, EyeOff } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { BlockType } from '../Block';
@@ -20,6 +20,8 @@ interface ControlsProps {
     setIsDebugMode: (val: boolean) => void;
     sidePadding: number;
     setSidePadding: (val: number) => void;
+    showGardenTitle: boolean;
+    setShowGardenTitle: (val: boolean) => void;
     onAddBlock: (type: BlockType) => void;
     onResetGarden: () => void;
     onShowTiles?: () => void;
@@ -34,6 +36,8 @@ export const Controls = ({
     setIsDebugMode,
     sidePadding,
     setSidePadding,
+    showGardenTitle,
+    setShowGardenTitle,
     onAddBlock,
     onResetGarden,
     onShowTiles
@@ -148,6 +152,23 @@ export const Controls = ({
                         </span>
                     </motion.button>
                 )}
+
+                {/* Title Toggle Button */}
+                <motion.button
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => setShowGardenTitle(!showGardenTitle)}
+                    className={cn(
+                        "group relative flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-full shadow-xl transition-all border border-black/5",
+                        showGardenTitle ? 'bg-black text-white' : 'bg-white text-gray-400 hover:text-black'
+                    )}
+                    title={showGardenTitle ? "Hide Garden Title" : "Show Garden Title"}
+                >
+                    {showGardenTitle ? <EyeOff size={18} className="sm:w-[22px] sm:h-[22px]" /> : <Eye size={18} className="sm:w-[22px] sm:h-[22px]" />}
+                    <span className="absolute right-12 sm:right-16 whitespace-nowrap bg-black text-white px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity hidden sm:block">
+                        {showGardenTitle ? "Hide Title" : "Show Title"}
+                    </span>
+                </motion.button>
 
                 {/* Padding Control - Hidden on mobile */}
                 <div className="hidden sm:flex items-center gap-3 bg-white rounded-full px-4 h-14 shadow-xl border border-black/5 mr-2">

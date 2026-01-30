@@ -2,6 +2,8 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
 import { Block, BlockData, BlockType } from './Block';
 import { Onboarding } from './Onboarding';
 import { Navbar } from './garden/Navbar';
@@ -9,6 +11,11 @@ import { GridEngine } from './garden/GridEngine';
 import { Controls } from './garden/Controls';
 import { SidebarEditor } from './garden/SidebarEditor';
 import { TileShowcase } from './TileShowcase';
+import { getTileDefaults } from './garden/tileDefaults';
+
+function cn(...inputs: ClassValue[]) {
+    return twMerge(clsx(inputs));
+}
 
 // --- CONSTANTS ---
 const DEFAULT_BLOCKS: BlockData[] = [
@@ -48,6 +55,7 @@ export default function GardenBuilder() {
     const [isMount, setIsMount] = useState(false);
     const [blocks, setBlocks] = useState<BlockData[]>([]);
     const [gardenName, setGardenName] = useState('My Garden');
+    const [showGardenTitle, setShowGardenTitle] = useState(true);
     const [isEditMode, setIsEditMode] = useState(false);
     const [isNewUser, setIsNewUser] = useState(true);
     const [showGrid, setShowGrid] = useState(false);
@@ -65,9 +73,11 @@ export default function GardenBuilder() {
         const savedUser = localStorage.getItem('garden-new-user');
         const savedGrid = localStorage.getItem('garden-show-grid');
         const savedPadding = localStorage.getItem('garden-padding');
+        const savedShowTitle = localStorage.getItem('garden-show-title');
 
         if (savedGrid === 'true') setShowGrid(true);
         if (savedPadding) setSidePadding(parseInt(savedPadding));
+        if (savedShowTitle === 'false') setShowGardenTitle(false);
 
         if (savedBlocks) {
             try {
@@ -94,7 +104,8 @@ export default function GardenBuilder() {
         localStorage.setItem('garden-new-user', String(isNewUser));
         localStorage.setItem('garden-show-grid', String(showGrid));
         localStorage.setItem('garden-padding', String(sidePadding));
-    }, [blocks, gardenName, isNewUser, isMount, showGrid, sidePadding]);
+        localStorage.setItem('garden-show-title', String(showGardenTitle));
+    }, [blocks, gardenName, isNewUser, isMount, showGrid, sidePadding, showGardenTitle]);
 
     // --- SMART GAP FINDING ---
     const findFirstGap = (w: number, h: number): { x: number; y: number } => {
@@ -127,52 +138,29 @@ export default function GardenBuilder() {
 
     // --- SMART SIZING BASED ON TYPE ---
     const addBlock = (type: BlockType) => {
-        let w: number, h: number;
-
-        switch (type) {
-            case 'thought':
-                w = 2; h = 2; break;
-            case 'quote':
-                w = 3; h = 3; break;
-            case 'text':
-                w = 3; h = 2; break;
-            case 'image':
-                w = 3; h = 3; break;
-            case 'video':
-                w = 4; h = 3; break;
-            case 'project':
-                w = 6; h = 4; break;
-            case 'status':
-                w = 2; h = 1; break;
-            default:
-                w = 2; h = 2;
-        }
-
-        const { x, y } = findFirstGap(w, h);
+        const defaults = getTileDefaults(type);
+        const { x, y } = findFirstGap(defaults.w, defaults.h);
         const id = `block-${Date.now()}`;
 
         const newBlock: BlockData = {
-            id, type, category: 'New', title: 'New Item',
-            x, y, w, h,
-            color: type === 'thought' ? '#fbf8cc' : '#ffffff'
+            id,
+            type,
+            title: 'New Item',
+            x,
+            y,
+            color: defaults.color || '#ffffff',
+            ...defaults
         };
 
-        if (type === 'image') {
-            newBlock.imageUrl = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80';
-            newBlock.objectFit = 'cover';
-        }
-
-        if (type === 'video') {
-            newBlock.videoUrl = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
-            newBlock.isLooping = true;
-            newBlock.isMuted = true;
-        }
-
+        // Special handling for project type
         if (type === 'project') {
-            newBlock.category = 'Projects';
             newBlock.title = 'Fields Of Chess';
-            newBlock.showcaseBorderColor = '#cc2727';
             newBlock.imageUrl = 'https://images.unsplash.com/photo-1551650975-87deedd944c3?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80';
+        }
+
+        // Special handling for image type
+        if (type === 'image') {
+            newBlock.objectFit = 'cover';
         }
 
         setBlocks([...blocks, newBlock]);
@@ -234,15 +222,20 @@ export default function GardenBuilder() {
             />
 
             {/* MAIN PORTAL AREA */}
-            <main className="pt-32 sm:pt-40 pb-16 sm:pb-20">
-                <div
-                    className="max-w-[1800px] mx-auto mb-12 sm:mb-20 px-4"
-                    style={{ paddingLeft: `${Math.max(16, sidePadding)}px`, paddingRight: `${Math.max(16, sidePadding)}px` }}
-                >
-                    <h1 className="font-serif-display text-4xl sm:text-6xl lg:text-8xl font-black italic tracking-tighter text-black/90 ml-[-2px] sm:ml-[-4px] leading-[0.8]">
-                        {gardenName}
-                    </h1>
-                </div>
+            <main className={cn(
+                "pb-16 sm:pb-20",
+                showGardenTitle ? "pt-32 sm:pt-40" : "pt-20 sm:pt-24"
+            )}>
+                {showGardenTitle && (
+                    <div
+                        className="max-w-[1800px] mx-auto mb-12 sm:mb-20 px-4"
+                        style={{ paddingLeft: `${Math.max(16, sidePadding)}px`, paddingRight: `${Math.max(16, sidePadding)}px` }}
+                    >
+                        <h1 className="font-serif-display text-4xl sm:text-6xl lg:text-8xl font-black italic tracking-tighter text-black/90 ml-[-2px] sm:ml-[-4px] leading-[0.8]">
+                            {gardenName}
+                        </h1>
+                    </div>
+                )}
 
                 {/* MODULAR GRID ENGINE */}
                 <GridEngine
@@ -281,7 +274,19 @@ export default function GardenBuilder() {
                                     isDebugMode={isDebugMode}
                                     isDimmed={!!(filter && !block.category.startsWith(filter))}
                                     onDelete={(id) => setBlocks(p => p.filter(b => b.id !== id))}
-                                    onUpdate={(id, d) => setBlocks(p => p.map(b => b.id === id ? { ...b, ...d } : b))}
+                                    onUpdate={(id, d) => {
+                                        const updatedBlocks = blocks.map(b => b.id === id ? { ...b, ...d } : b);
+                                        setBlocks(updatedBlocks);
+                                        
+                                        // If size changed, we need to trigger a layout update
+                                        if (d.w !== undefined || d.h !== undefined) {
+                                            // Force a layout recalculation by updating the layout
+                                            setTimeout(() => {
+                                                const newLayout = updatedBlocks.map(b => ({ i: b.id, x: b.x, y: b.y, w: b.w, h: b.h }));
+                                                // This will trigger the GridEngine to recalculate positions
+                                            }, 50);
+                                        }
+                                    }}
                                     onEdit={() => handleEditTile(block)}
                                 />
                             </motion.div>
@@ -300,6 +305,8 @@ export default function GardenBuilder() {
                 setIsDebugMode={setIsDebugMode}
                 sidePadding={sidePadding}
                 setSidePadding={setSidePadding}
+                showGardenTitle={showGardenTitle}
+                setShowGardenTitle={setShowGardenTitle}
                 onAddBlock={addBlock}
                 onResetGarden={() => {
                     if (window.confirm('⚠️ Reset Layout?\n\nThis will clear all blocks and restore defaults. This action cannot be undone.')) {

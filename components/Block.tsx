@@ -12,6 +12,8 @@ import {
     StatusTile, 
     ProjectTile 
 } from './tiles';
+import { getTypeChangeUpdates } from './garden/tileDefaults';
+import { COMPACT_TILE_SIZES } from './garden/tileSizes';
 
 function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
@@ -40,6 +42,10 @@ export interface BlockData {
     // Project-specific properties (for your Figma design)
     showcaseBackground?: string;
     showcaseBorderColor?: string;
+    // Text-specific properties
+    isTransparent?: boolean;
+    // Video-specific properties
+    videoShape?: 'rectangle' | 'circle';
     x: number;
     y: number;
     w: number;
@@ -119,11 +125,13 @@ export const Block = React.forwardRef<HTMLDivElement, BlockProps>(({
             className={cn(
                 getContainerClasses(),
                 isDimmed && "opacity-20 grayscale pointer-events-none",
+                // Handle transparent background for text tiles
+                data.type === 'text' && data.isTransparent && "!bg-transparent !border-transparent !shadow-none",
                 className
             )}
             style={{
                 ...style,
-                backgroundColor: data.color,
+                backgroundColor: data.type === 'text' && data.isTransparent ? 'transparent' : data.color,
             }}
             {...props}
         >
@@ -212,7 +220,10 @@ export const Block = React.forwardRef<HTMLDivElement, BlockProps>(({
                                         {(['text', 'image', 'video', 'quote', 'thought', 'project', 'status'] as BlockType[]).map(t => (
                                             <button
                                                 key={t}
-                                                onClick={() => onUpdate(data.id, { type: t })}
+                                                onClick={() => {
+                                                    const updates = getTypeChangeUpdates(t, data);
+                                                    onUpdate(data.id, updates);
+                                                }}
                                                 className={cn(
                                                     "px-3 py-1 rounded-md text-xs border capitalize transition-colors",
                                                     data.type === t ? "bg-black text-white border-black" : "bg-white hover:bg-gray-50"
@@ -223,6 +234,30 @@ export const Block = React.forwardRef<HTMLDivElement, BlockProps>(({
                                         ))}
                                     </div>
                                 </div>
+                                
+                                <div className="space-y-2">
+                                    <label className="text-[10px] uppercase tracking-widest text-gray-400">Size</label>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        {COMPACT_TILE_SIZES.map(size => (
+                                            <button
+                                                key={`${size.w}x${size.h}`}
+                                                onClick={() => onUpdate(data.id, { w: size.w, h: size.h })}
+                                                className={cn(
+                                                    "px-2 py-1.5 rounded-md text-xs border transition-colors font-mono",
+                                                    data.w === size.w && data.h === size.h 
+                                                        ? "bg-black text-white border-black" 
+                                                        : "bg-white hover:bg-gray-50"
+                                                )}
+                                            >
+                                                {size.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <p className="text-[9px] text-gray-400">
+                                        Width × Height in grid units
+                                    </p>
+                                </div>
+                                
                                 <div className="space-y-2">
                                     <label className="text-[10px] uppercase tracking-widest text-gray-400">Color</label>
                                     <div className="flex flex-wrap gap-2">
@@ -276,6 +311,19 @@ export const Block = React.forwardRef<HTMLDivElement, BlockProps>(({
                                             className="w-full rounded-lg border p-2 text-sm focus:ring-2 focus:ring-black focus:border-black transition-all"
                                             placeholder="Author Name"
                                         />
+                                    )}
+                                    {data.type === 'text' && (
+                                        <div className="flex items-center gap-4">
+                                            <label className="flex items-center gap-2 text-xs cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={data.isTransparent || false}
+                                                    onChange={() => onUpdate(data.id, { isTransparent: !data.isTransparent })}
+                                                    className="rounded"
+                                                />
+                                                Transparent Background
+                                            </label>
+                                        </div>
                                     )}
                                     {data.type === 'image' && (
                                         <>
@@ -343,6 +391,29 @@ export const Block = React.forwardRef<HTMLDivElement, BlockProps>(({
                                                     />
                                                     Muted
                                                 </label>
+                                            </div>
+                                            <div className="flex items-center gap-4">
+                                                <label className="text-xs text-gray-600">Shape:</label>
+                                                <div className="flex gap-2">
+                                                    <button
+                                                        onClick={() => onUpdate(data.id, { videoShape: 'rectangle' })}
+                                                        className={cn(
+                                                            "px-3 py-1 rounded-md text-xs border transition-colors",
+                                                            (data.videoShape || 'rectangle') === 'rectangle' ? "bg-black text-white border-black" : "bg-white hover:bg-gray-50"
+                                                        )}
+                                                    >
+                                                        Rectangle
+                                                    </button>
+                                                    <button
+                                                        onClick={() => onUpdate(data.id, { videoShape: 'circle' })}
+                                                        className={cn(
+                                                            "px-3 py-1 rounded-md text-xs border transition-colors",
+                                                            data.videoShape === 'circle' ? "bg-black text-white border-black" : "bg-white hover:bg-gray-50"
+                                                        )}
+                                                    >
+                                                        Circle
+                                                    </button>
+                                                </div>
                                             </div>
                                         </>
                                     )}
