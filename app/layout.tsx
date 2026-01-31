@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Newsreader, Caveat } from "next/font/google"; // Added Caveat
 import "./globals.css";
+import { AuthProvider } from "@/hooks/useAuth";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -33,7 +34,9 @@ export default function RootLayout({
       <body
         className={`${inter.variable} ${newsreader.variable} ${caveat.variable} antialiased`}
       >
-        {children}
+        <AuthProvider>
+          {children}
+        </AuthProvider>
       </body>
     </html>
   );

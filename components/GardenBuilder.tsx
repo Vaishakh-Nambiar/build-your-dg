@@ -6,12 +6,14 @@ import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { Block, BlockData, BlockType } from './Block';
 import { Onboarding } from './Onboarding';
-import { Navbar } from './garden/Navbar';
+import { TopBar } from './garden/TopBar';
 import { GridEngine } from './garden/GridEngine';
 import { Controls } from './garden/Controls';
 import { SidebarEditor } from './garden/SidebarEditor';
 import { TileShowcase } from './TileShowcase';
 import { getTileDefaults } from './garden/tileDefaults';
+import { useGarden } from '@/hooks/useGarden';
+import { useAuth } from '@/hooks/useAuth';
 
 function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
@@ -52,6 +54,20 @@ const DEFAULT_BLOCKS: BlockData[] = [
 ];
 
 export default function GardenBuilder() {
+    const { user } = useAuth();
+    const { 
+        garden, 
+        loading: gardenLoading, 
+        saveStatus, 
+        createGarden, 
+        autoSave, 
+        manualSave, 
+        togglePublic, 
+        getPublicUrl,
+        checkForLocalBackup,
+        restoreFromLocalBackup 
+    } = useGarden();
+    
     const [isMount, setIsMount] = useState(false);
     const [blocks, setBlocks] = useState<BlockData[]>([]);
     const [gardenName, setGardenName] = useState('My Garden');
@@ -68,9 +84,19 @@ export default function GardenBuilder() {
 
     // --- INITIALIZATION ---
     useEffect(() => {
-        const savedBlocks = localStorage.getItem('garden-blocks');
-        const savedName = localStorage.getItem('garden-name');
-        const savedUser = localStorage.getItem('garden-new-user');
+        // Clear localStorage when user changes to prevent cross-user contamination
+        const currentUserId = user?.id;
+        const lastUserId = localStorage.getItem('last-user-id');
+        
+        if (currentUserId && currentUserId !== lastUserId) {
+            // Different user - clear all localStorage data
+            localStorage.removeItem('garden-blocks');
+            localStorage.removeItem('garden-name');
+            localStorage.removeItem('garden-new-user');
+            localStorage.removeItem('garden-backup');
+            localStorage.setItem('last-user-id', currentUserId);
+        }
+
         const savedGrid = localStorage.getItem('garden-show-grid');
         const savedPadding = localStorage.getItem('garden-padding');
         const savedShowTitle = localStorage.getItem('garden-show-title');
@@ -79,33 +105,86 @@ export default function GardenBuilder() {
         if (savedPadding) setSidePadding(parseInt(savedPadding));
         if (savedShowTitle === 'false') setShowGardenTitle(false);
 
-        if (savedBlocks) {
-            try {
-                const parsed = JSON.parse(savedBlocks);
-                setBlocks(Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_BLOCKS);
-            } catch (e) {
-                setBlocks(DEFAULT_BLOCKS);
+        // CORRECT PRIORITY: Database FIRST, localStorage as fallback only
+        if (garden) {
+            // User has garden data in database - use it
+            setBlocks(garden.tiles || DEFAULT_BLOCKS);
+            setGardenName(garden.title || 'My Garden');
+            setIsNewUser(false); // User has data, not new
+        } else if (user) {
+            // User is authenticated but no garden data - create a new garden
+            const savedBlocks = localStorage.getItem('garden-blocks');
+            const savedName = localStorage.getItem('garden-name');
+            const savedUser = localStorage.getItem('garden-new-user');
+            
+            // Use localStorage as temporary data while creating garden
+            let initialBlocks = DEFAULT_BLOCKS;
+            let initialName = 'My Garden';
+            
+            if (savedBlocks) {
+                try {
+                    const parsed = JSON.parse(savedBlocks);
+                    initialBlocks = Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_BLOCKS;
+                } catch (e) {
+                    initialBlocks = DEFAULT_BLOCKS;
+                }
             }
+            
+            if (savedName) initialName = savedName;
+            
+            setBlocks(initialBlocks);
+            setGardenName(initialName);
+            
+            // Create garden in database for new user
+            if (!garden && user) {
+                createGarden({
+                    title: initialName,
+                    tiles: initialBlocks,
+                    layout: { showGrid, sidePadding, showGardenTitle }
+                });
+            }
+            
+            if (savedUser === 'false') setIsNewUser(false);
         } else {
+            // No user - use defaults
             setBlocks(DEFAULT_BLOCKS);
+            setGardenName('My Garden');
+            setIsNewUser(true);
         }
 
-        if (savedName) setGardenName(savedName);
-        if (savedUser === 'false') setIsNewUser(false);
+        // Check for local backup only if user matches
+        if (user && garden) {
+            const backup = checkForLocalBackup();
+            if (backup && backup.gardenId === garden.id) {
+                const shouldRestore = window.confirm(
+                    'We found unsaved changes from a previous session. Would you like to restore them?'
+                );
+                if (shouldRestore) {
+                    restoreFromLocalBackup();
+                }
+            }
+        }
 
         setTimeout(() => setIsMount(true), 100);
-    }, []);
+    }, [garden, user, checkForLocalBackup, restoreFromLocalBackup]);
 
     // --- PERSISTENCE ---
     useEffect(() => {
         if (!isMount) return;
+        
+        // Save to localStorage as backup
         localStorage.setItem('garden-blocks', JSON.stringify(blocks));
         localStorage.setItem('garden-name', gardenName);
         localStorage.setItem('garden-new-user', String(isNewUser));
         localStorage.setItem('garden-show-grid', String(showGrid));
         localStorage.setItem('garden-padding', String(sidePadding));
         localStorage.setItem('garden-show-title', String(showGardenTitle));
-    }, [blocks, gardenName, isNewUser, isMount, showGrid, sidePadding, showGardenTitle]);
+        
+        // Auto-save to database if user is authenticated and garden exists
+        if (user && garden) {
+            autoSave(blocks, { showGrid, sidePadding, showGardenTitle }, gardenName);
+        }
+    }, [blocks, gardenName, isNewUser, isMount, showGrid, sidePadding, showGardenTitle, user, garden]); // Removed autoSave from dependencies
 
     // --- SMART GAP FINDING ---
     const findFirstGap = (w: number, h: number): { x: number; y: number } => {
@@ -197,7 +276,41 @@ export default function GardenBuilder() {
         setSelectedTile(null);
     };
 
-    if (!isMount) return <div className="min-h-screen bg-[#F9F9F9]" />;
+    // TopBar handlers
+    const handleGardenNameChange = (newName: string) => {
+        setGardenName(newName);
+    };
+
+    const handleManualSave = async () => {
+        if (!user || !garden) {
+            // If no garden exists, create one
+            if (user && !garden) {
+                await createGarden({
+                    title: gardenName,
+                    tiles: blocks,
+                    layout: { showGrid, sidePadding, showGardenTitle },
+                    isPublic: false
+                });
+            }
+            return;
+        }
+        
+        await manualSave();
+    };
+
+    const handleTogglePublic = async () => {
+        if (!garden) return;
+        await togglePublic();
+    };
+
+    if (!isMount || gardenLoading) return <div className="min-h-screen bg-[#F9F9F9] flex items-center justify-center">
+        <div className="text-center">
+            <div className="w-8 h-8 bg-black rounded-full flex items-center justify-center mb-4 mx-auto">
+                <span className="text-white text-sm font-bold">🌱</span>
+            </div>
+            <p className="text-black/60">Loading your garden...</p>
+        </div>
+    </div>;
 
     return (
         <div className="min-h-screen bg-[#F9F9F9] overflow-x-hidden selection:bg-black selection:text-white">
@@ -212,13 +325,18 @@ export default function GardenBuilder() {
                 )}
             </AnimatePresence>
 
-            {/* MODULAR NAVBAR */}
-            <Navbar
+            {/* SMART EDITOR TOP BAR */}
+            <TopBar
                 gardenName={gardenName}
+                onGardenNameChange={handleGardenNameChange}
+                saveStatus={saveStatus}
+                onManualSave={handleManualSave}
+                isPublic={garden?.is_public || false}
+                onTogglePublic={handleTogglePublic}
+                publicUrl={getPublicUrl() || undefined}
                 categories={categories}
                 activeFilter={filter}
                 onFilterChange={setFilter}
-                isDebugMode={isDebugMode}
             />
 
             {/* MAIN PORTAL AREA */}

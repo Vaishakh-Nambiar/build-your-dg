@@ -1,12 +1,10 @@
-import GardenBuilder from "@/components/GardenBuilder";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { LandingPage } from "@/components/LandingPage";
 
 export default function Home() {
   return (
     <ErrorBoundary>
-      <main>
-        <GardenBuilder />
-      </main>
+      <LandingPage />
     </ErrorBoundary>
   );
 }
