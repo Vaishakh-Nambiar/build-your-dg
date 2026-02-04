@@ -32,41 +32,53 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Initialize auth state and set up auth state listener
   useEffect(() => {
+    let mounted = true;
+    
     const initAuth = async () => {
       try {
         const user = await authService.getCurrentUser();
-        setAuthState(prev => ({ ...prev, user, loading: false }));
+        if (mounted) {
+          setAuthState(prev => ({ ...prev, user, loading: false }));
+        }
       } catch (error) {
         console.error('Auth initialization error:', error);
-        setAuthState(prev => ({ 
-          ...prev, 
-          loading: false, 
-          error: 'Failed to initialize authentication' 
-        }));
+        if (mounted) {
+          setAuthState(prev => ({ 
+            ...prev, 
+            loading: false, 
+            error: 'Failed to initialize authentication' 
+          }));
+        }
       }
     };
 
     // Set up auth state change listener
     const unsubscribe = authService.onAuthStateChange((user) => {
-      setAuthState(prev => ({ ...prev, user, loading: false }));
+      console.log('[Auth] Auth state changed:', user ? user.email : 'No user');
+      if (mounted) {
+        setAuthState(prev => ({ ...prev, user, loading: false }));
+      }
     });
 
     initAuth();
 
     // Cleanup subscription on unmount
     return () => {
+      mounted = false;
       unsubscribe();
     };
   }, []);
 
   const signIn = useCallback(async (email: string, password: string) => {
+    console.log('[Auth] Starting sign in...');
     setAuthState(prev => ({ ...prev, loading: true, error: null }));
     
     try {
       const user = await authService.signIn(email, password);
+      console.log('[Auth] Sign in successful:', user.email);
       setAuthState(prev => ({ ...prev, user, loading: false }));
     } catch (error) {
-      console.error('Sign in error:', error);
+      console.error('[Auth] Sign in error:', error);
       setAuthState(prev => ({ 
         ...prev, 
         loading: false, 

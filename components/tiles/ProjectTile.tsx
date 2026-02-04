@@ -18,51 +18,109 @@ export const ProjectTile: React.FC<ProjectTileProps> = ({ data, isEditMode, isDe
     // Render based on archetype
     if (archetype === 'mobile-app') {
         return (
-            <div className="absolute inset-0 overflow-hidden">
-                {/* Gradient Background */}
-                <div className="absolute inset-0 bg-gradient-to-br from-gray-50 to-gray-100" />
-                
-                {/* Phone Mockup */}
-                <div className="absolute inset-4 flex items-center justify-center">
-                    <div 
-                        className="relative bg-black rounded-[20px] shadow-2xl transform"
-                        style={{ 
-                            transform: `rotate(${(renderConfig as any).tiltAngle || 0}deg)`,
-                            width: '60%',
-                            aspectRatio: '9/19.5'
-                        }}
-                    >
-                        {/* Phone Screen */}
-                        <div className="absolute inset-2 bg-white rounded-[16px] overflow-hidden">
-                            {data.imageUrl ? (
-                                <img 
-                                    src={data.imageUrl} 
-                                    alt={data.title || 'Mobile app'} 
-                                    className="w-full h-full object-cover"
-                                />
-                            ) : (
-                                <div className="w-full h-full bg-gradient-to-b from-blue-50 to-blue-100 flex items-center justify-center">
-                                    <span className="text-blue-400 text-xs">App Preview</span>
+            <div 
+                className="absolute inset-0 overflow-hidden group cursor-pointer"
+                style={{
+                    // CSS Variables for easy tuning
+                    '--phone-rotation': '-8deg',
+                    '--phone-offset-x': '15%',
+                    '--phone-offset-y': '-10%',
+                    '--phone-scale': '0.85',
+                    '--phone-hover-scale': '0.95'
+                } as React.CSSProperties}
+            >
+                {/* ============================= */}
+                {/* BACKGROUND CONTENT LAYER */}
+                {/* ============================= */}
+                <div className="absolute inset-0 z-0 bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-100/40">
+                    {/* Content positioned to be visible around floating phone */}
+                    <div className="absolute inset-6 flex flex-col justify-between">
+                        {/* Top Content */}
+                        <div className="space-y-2">
+                            <div className="text-xs uppercase tracking-wider text-slate-500 font-medium">
+                                {data.category || 'Mobile App'}
+                            </div>
+                            <h3 className="text-lg font-bold text-slate-900 leading-tight">
+                                {data.title || 'App Project'}
+                            </h3>
+                            {data.content && (
+                                <p className="text-sm text-slate-600 leading-relaxed line-clamp-2">
+                                    {data.content}
+                                </p>
+                            )}
+                        </div>
+                        
+                        {/* Bottom Content */}
+                        <div className="space-y-2">
+                            {data.platform && (
+                                <div className="text-xs text-slate-500">
+                                    Platform: {data.platform}
+                                </div>
+                            )}
+                            {data.appStoreUrl && (
+                                <div className="text-xs text-blue-600 font-medium">
+                                    Available on App Store
                                 </div>
                             )}
                         </div>
                     </div>
                 </div>
-                
-                {/* Title */}
-                <div className="absolute bottom-4 left-4 right-4">
-                    <p className="font-['Inter'] text-sm font-medium text-gray-800 text-center">
-                        {data.title}
-                    </p>
+
+                {/* ============================= */}
+                {/* FLOATING IMAGE LAYER */}
+                {/* ============================= */}
+                <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
+                    <div 
+                        className="relative transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] group-hover:!translate-x-0 group-hover:!translate-y-0 group-hover:!rotate-0 group-hover:!scale-[0.95]"
+                        style={{
+                            transform: `
+                                translate(var(--phone-offset-x), var(--phone-offset-y)) 
+                                rotate(var(--phone-rotation)) 
+                                scale(var(--phone-scale))
+                            `,
+                            width: '45%',
+                            aspectRatio: '9/19.5'
+                        }}
+                    >
+                        {/* Phone Frame */}
+                        <div className="relative w-full h-full bg-slate-900 rounded-[24px] shadow-2xl shadow-slate-900/25">
+                            {/* Screen */}
+                            <div className="absolute inset-[3px] bg-white rounded-[21px] overflow-hidden">
+                                {/* Notch */}
+                                <div className="absolute top-2 left-1/2 -translate-x-1/2 w-16 h-1 bg-slate-900 rounded-full z-10" />
+                                
+                                {/* App Content */}
+                                {data.imageUrl ? (
+                                    <img 
+                                        src={data.imageUrl} 
+                                        alt={data.title || 'Mobile app preview'} 
+                                        className="w-full h-full object-cover"
+                                    />
+                                ) : (
+                                    <div className="w-full h-full bg-gradient-to-b from-blue-50 to-indigo-100 flex items-center justify-center">
+                                        <div className="text-center space-y-2">
+                                            <div className="w-12 h-12 bg-blue-200 rounded-xl mx-auto" />
+                                            <div className="text-xs text-blue-600 font-medium">App Preview</div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                            
+                            {/* Phone Highlights */}
+                            <div className="absolute top-8 right-1 w-0.5 h-6 bg-slate-700 rounded-full" />
+                            <div className="absolute top-16 right-1 w-0.5 h-4 bg-slate-700 rounded-full" />
+                            <div className="absolute top-12 left-1 w-0.5 h-8 bg-slate-700 rounded-full" />
+                        </div>
+                    </div>
                 </div>
-                
+
                 {/* Click overlay */}
                 {data.link && (
                     <a 
                         href={data.link}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="absolute inset-0 z-10"
+                        className="absolute inset-0 z-20 pointer-events-auto"
                         onClick={(e) => e.stopPropagation()}
                     />
                 )}

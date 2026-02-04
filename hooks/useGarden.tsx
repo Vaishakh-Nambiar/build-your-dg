@@ -39,7 +39,48 @@ export function useGarden(options: UseGardenOptions = {}) {
     title?: string;
   }>({});
 
-  // Define loadGarden first before using it in useEffect
+  // Load user's garden (either specific gardenId or their first garden)
+  const loadUserGarden = useCallback(async () => {
+    if (!user) return;
+    
+    console.log('[useGarden] Loading user garden:', { userId: user.id, gardenId });
+    setLoading(true);
+    try {
+      if (gardenId) {
+        // Load specific garden
+        const gardenData = await gardenService.getGarden(gardenId, user.id);
+        if (gardenData) {
+          console.log('[useGarden] Loaded specific garden:', gardenData);
+          setGarden(gardenData);
+          setSaveStatus(prev => ({ ...prev, lastSaved: new Date(gardenData.updated_at) }));
+        }
+      } else {
+        // Load user's gardens and use the first one
+        const userGardens = await gardenService.getUserGardens(user.id);
+        console.log('[useGarden] User gardens found:', userGardens.length);
+        if (userGardens.length > 0) {
+          const firstGarden = userGardens[0];
+          console.log('[useGarden] Using first garden:', firstGarden);
+          setGarden(firstGarden);
+          setSaveStatus(prev => ({ ...prev, lastSaved: new Date(firstGarden.updated_at) }));
+        } else {
+          console.log('[useGarden] No gardens found for user');
+        }
+        // If no gardens exist, garden will remain null and can be created later
+      }
+    } catch (error) {
+      console.error('[useGarden] Failed to load garden:', error);
+      setSaveStatus(prev => ({ 
+        ...prev, 
+        status: 'error', 
+        error: error instanceof Error ? error.message : 'Failed to load garden' 
+      }));
+    } finally {
+      setLoading(false);
+    }
+  }, [user, gardenId]);
+
+  // Define loadGarden for backward compatibility
   const loadGarden = useCallback(async (id: string) => {
     if (!user) return;
     
@@ -62,6 +103,11 @@ export function useGarden(options: UseGardenOptions = {}) {
     }
   }, [user]);
 
+  // Define clearLocalBackup early to avoid circular dependency
+  const clearLocalBackup = useCallback(() => {
+    localStorage.removeItem('garden-backup');
+  }, []);
+
   // Load garden on mount and clear localStorage on user change
   useEffect(() => {
     if (user) {
@@ -74,11 +120,10 @@ export function useGarden(options: UseGardenOptions = {}) {
         localStorage.setItem('last-garden-user-id', user.id);
       }
       
-      if (gardenId) {
-        loadGarden(gardenId);
-      }
+      // Load user's garden
+      loadUserGarden();
     }
-  }, [gardenId, user, loadGarden]);
+  }, [user, loadUserGarden]);
 
   // Set up local backup interval
   useEffect(() => {
@@ -103,9 +148,11 @@ export function useGarden(options: UseGardenOptions = {}) {
   const createGarden = useCallback(async (gardenData: CreateGardenData): Promise<Garden | null> => {
     if (!user) return null;
     
+    console.log('[useGarden] Creating garden:', { userId: user.id, gardenData });
     setLoading(true);
     try {
       const newGarden = await gardenService.createGarden(user.id, gardenData);
+      console.log('[useGarden] Garden created successfully:', newGarden);
       setGarden(newGarden);
       setSaveStatus({
         status: 'saved',
@@ -114,7 +161,7 @@ export function useGarden(options: UseGardenOptions = {}) {
       });
       return newGarden;
     } catch (error) {
-      console.error('Failed to create garden:', error);
+      console.error('[useGarden] Failed to create garden:', error);
       setSaveStatus(prev => ({ 
         ...prev, 
         status: 'error', 
@@ -156,7 +203,17 @@ export function useGarden(options: UseGardenOptions = {}) {
   }, [garden, user]);
 
   const autoSave = useCallback((tiles?: any[], layout?: any, title?: string) => {
-    if (!garden || !user) return;
+    if (!garden || !user) {
+      console.log('[useGarden] AutoSave skipped - no garden or user:', { garden: !!garden, user: !!user });
+      return;
+    }
+
+    console.log('[useGarden] AutoSave triggered:', { 
+      gardenId: garden.id, 
+      tilesCount: tiles?.length, 
+      title,
+      layout 
+    });
 
     // Update pending changes
     if (tiles !== undefined) pendingChangesRef.current.tiles = tiles;
@@ -175,8 +232,12 @@ export function useGarden(options: UseGardenOptions = {}) {
     autoSaveTimeoutRef.current = setTimeout(async () => {
       const changes = { ...pendingChangesRef.current };
       
-      if (Object.keys(changes).length === 0) return;
+      if (Object.keys(changes).length === 0) {
+        console.log('[useGarden] AutoSave - no changes to save');
+        return;
+      }
 
+      console.log('[useGarden] AutoSave executing:', changes);
       setSaveStatus(prev => ({ ...prev, status: 'saving' }));
       
       try {
@@ -186,6 +247,8 @@ export function useGarden(options: UseGardenOptions = {}) {
           changes.tiles || garden.tiles, 
           changes.layout || garden.layout
         );
+        
+        console.log('[useGarden] AutoSave successful');
         
         // Update local garden state
         setGarden(prev => prev ? {
@@ -208,7 +271,7 @@ export function useGarden(options: UseGardenOptions = {}) {
         // Clear local backup since we've saved
         clearLocalBackup();
       } catch (error) {
-        console.error('Auto-save failed:', error);
+        console.error('[useGarden] Auto-save failed:', error);
         setSaveStatus(prev => ({ 
           ...prev, 
           status: 'error', 
@@ -320,10 +383,6 @@ export function useGarden(options: UseGardenOptions = {}) {
     return true;
   }, [garden, checkForLocalBackup]);
 
-  const clearLocalBackup = useCallback(() => {
-    localStorage.removeItem('garden-backup');
-  }, []);
-
   const getPublicUrl = useCallback(() => {
     if (!garden?.is_public || !garden.slug) return null;
     return `${window.location.origin}/${garden.slug}`;
@@ -357,6 +416,7 @@ export function useGarden(options: UseGardenOptions = {}) {
     restoreFromLocalBackup,
     clearLocalBackup,
     getPublicUrl,
-    loadGarden
+    loadGarden,
+    loadUserGarden
   };
 }

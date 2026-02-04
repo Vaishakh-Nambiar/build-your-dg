@@ -105,7 +105,7 @@ export const FormPanel: React.FC<FormPanelProps> = ({
     };
 
     // Handle file upload with validation
-    const handleFileUpload = (file: File, fileType: 'image' | 'video', urlField: string) => {
+    const handleFileUpload = async (file: File, fileType: 'image' | 'video', urlField: string) => {
         // Validate file
         const fileError = validateFileUpload(file, fileType);
         if (fileError) {
@@ -123,12 +123,38 @@ export const FormPanel: React.FC<FormPanelProps> = ({
             return newErrors;
         });
         
-        // Create object URL for preview
-        const fileUrl = URL.createObjectURL(file);
-        handleFieldChange(urlField, fileUrl);
-        
-        // Mark field as touched
-        setTouchedFields(prev => new Set([...prev, urlField]));
+        try {
+            // Create FormData for upload
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            // Upload to Supabase
+            const response = await fetch('/api/upload', {
+                method: 'POST',
+                body: formData,
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Upload failed');
+            }
+            
+            const { url } = await response.json();
+            
+            // Update field with Supabase URL
+            handleFieldChange(urlField, url);
+            
+            // Mark field as touched
+            setTouchedFields(prev => new Set([...prev, urlField]));
+            
+        } catch (error) {
+            console.error('File upload error:', error);
+            const errorMessage = error instanceof Error ? error.message : 'Upload failed';
+            setFileUploadErrors(prev => ({ ...prev, [urlField]: errorMessage }));
+            if (onFileUploadError) {
+                onFileUploadError(errorMessage);
+            }
+        }
     };
 
     // Error display component

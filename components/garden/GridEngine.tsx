@@ -298,7 +298,7 @@ export const GridEngine = ({
     return (
         <div
             className={cn(
-                "relative mx-auto w-full transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)]",
+                "relative mx-auto w-full transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] pt-10",
                 isDebugMode && "border-x border-blue-500/20 bg-blue-50/5"
             )}
             style={{

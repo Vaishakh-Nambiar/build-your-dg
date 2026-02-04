@@ -45,6 +45,13 @@ interface TopBarProps {
   categories?: string[];
   activeFilter?: string | null;
   onFilterChange?: (filter: string | null) => void;
+  // Owner context
+  isOwner?: boolean;
+  gardenOwner?: {
+    displayName?: string;
+    email?: string;
+    avatarUrl?: string;
+  };
 }
 
 export const TopBar = ({
@@ -58,7 +65,9 @@ export const TopBar = ({
   className,
   categories = [],
   activeFilter,
-  onFilterChange
+  onFilterChange,
+  isOwner = false,
+  gardenOwner
 }: TopBarProps) => {
   const { user, signOut } = useAuth();
   const [isEditingTitle, setIsEditingTitle] = useState(false);

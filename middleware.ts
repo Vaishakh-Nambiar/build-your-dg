@@ -72,7 +72,7 @@ export async function middleware(request: NextRequest) {
 
     // Log authentication status for debugging (only in development)
     if (process.env.NODE_ENV === 'development') {
-      console.log(`[Middleware] ${pathname} - Authenticated: ${isAuthenticated}${user ? ` (${user.email})` : ''}`);
+      console.log(`[Middleware] ${pathname} - Authenticated: ${isAuthenticated}${user ? ` (${user.email})` : ''}${error ? ` - Error: ${error.message}` : ''}`);
     }
 
     // Handle protected routes
@@ -90,22 +90,6 @@ export async function middleware(request: NextRequest) {
         }
         
         return NextResponse.redirect(loginUrl);
-      }
-      
-      // For authenticated users accessing protected routes, ensure session is fresh
-      if (user) {
-        const sessionAge = Date.now() - new Date(user.created_at || 0).getTime();
-        const maxSessionAge = 24 * 60 * 60 * 1000; // 24 hours
-        
-        if (sessionAge > maxSessionAge) {
-          console.log(`[Middleware] Session expired for user ${user.email}, redirecting to login`);
-          
-          const loginUrl = new URL('/login', request.url);
-          loginUrl.searchParams.set('returnTo', pathname);
-          loginUrl.searchParams.set('sessionExpired', 'true');
-          
-          return NextResponse.redirect(loginUrl);
-        }
       }
     }
 

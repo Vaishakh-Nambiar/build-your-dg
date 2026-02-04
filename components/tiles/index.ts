@@ -4,6 +4,7 @@ export { QuoteTile } from './QuoteTile';
 export { ImageTile } from './ImageTile';
 export { ImageTileBlock } from './ImageTileBlock';
 export { VideoTile } from './VideoTile';
+export { VideoTileBlock } from './VideoTileBlock';
 export { StatusTile } from './StatusTile';
 export { WritingTileBlock } from './WritingTileBlock';
 export { ProjectTile } from './ProjectTile';

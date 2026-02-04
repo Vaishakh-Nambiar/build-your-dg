@@ -11,9 +11,13 @@ export async function GET(request: NextRequest) {
     
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
     
-    if (!error) {
+    if (!error && data.session) {
+      // Wait a moment for session to be established
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       // Successful authentication, redirect to the intended page
-      return NextResponse.redirect(`${origin}${next}`);
+      const redirectUrl = new URL(next, origin);
+      return NextResponse.redirect(redirectUrl);
     }
   }
 

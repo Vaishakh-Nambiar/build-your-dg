@@ -6,7 +6,7 @@ import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { Block, BlockData, BlockType } from './Block';
 import { Onboarding } from './Onboarding';
-import { TopBar } from './garden/TopBar';
+import { SplitTopBar } from './garden/SplitTopBar';
 import { GridEngine } from './garden/GridEngine';
 import { Controls } from './garden/Controls';
 import { SidebarEditor } from './garden/SidebarEditor';
@@ -14,6 +14,7 @@ import { TileShowcase } from './TileShowcase';
 import { getTileDefaults } from './garden/tileDefaults';
 import { useGarden } from '@/hooks/useGarden';
 import { useAuth } from '@/hooks/useAuth';
+import { DebugPanel } from './DebugPanel';
 
 function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
@@ -65,10 +66,14 @@ export default function GardenBuilder() {
         togglePublic, 
         getPublicUrl,
         checkForLocalBackup,
-        restoreFromLocalBackup 
+        restoreFromLocalBackup,
+        loadUserGarden
     } = useGarden();
     
     const [isMount, setIsMount] = useState(false);
+    const [isInitializing, setIsInitializing] = useState(true);
+    const [initializationProgress, setInitializationProgress] = useState(0);
+    const [initializationStep, setInitializationStep] = useState('Connecting...');
     const [blocks, setBlocks] = useState<BlockData[]>([]);
     const [gardenName, setGardenName] = useState('My Garden');
     const [showGardenTitle, setShowGardenTitle] = useState(true);
@@ -84,93 +89,167 @@ export default function GardenBuilder() {
 
     // --- INITIALIZATION ---
     useEffect(() => {
-        // Clear localStorage when user changes to prevent cross-user contamination
-        const currentUserId = user?.id;
-        const lastUserId = localStorage.getItem('last-user-id');
+        let mounted = true;
         
-        if (currentUserId && currentUserId !== lastUserId) {
-            // Different user - clear all localStorage data
-            localStorage.removeItem('garden-blocks');
-            localStorage.removeItem('garden-name');
-            localStorage.removeItem('garden-new-user');
-            localStorage.removeItem('garden-backup');
-            localStorage.setItem('last-user-id', currentUserId);
-        }
-
-        const savedGrid = localStorage.getItem('garden-show-grid');
-        const savedPadding = localStorage.getItem('garden-padding');
-        const savedShowTitle = localStorage.getItem('garden-show-title');
-
-        if (savedGrid === 'true') setShowGrid(true);
-        if (savedPadding) setSidePadding(parseInt(savedPadding));
-        if (savedShowTitle === 'false') setShowGardenTitle(false);
-
-        // CORRECT PRIORITY: Database FIRST, localStorage as fallback only
-        if (garden) {
-            // User has garden data in database - use it
-            setBlocks(garden.tiles || DEFAULT_BLOCKS);
-            setGardenName(garden.title || 'My Garden');
-            setIsNewUser(false); // User has data, not new
-        } else if (user) {
-            // User is authenticated but no garden data - create a new garden
-            const savedBlocks = localStorage.getItem('garden-blocks');
-            const savedName = localStorage.getItem('garden-name');
-            const savedUser = localStorage.getItem('garden-new-user');
+        const initializeApp = async () => {
+            if (!mounted) return;
             
-            // Use localStorage as temporary data while creating garden
-            let initialBlocks = DEFAULT_BLOCKS;
-            let initialName = 'My Garden';
-            
-            if (savedBlocks) {
-                try {
-                    const parsed = JSON.parse(savedBlocks);
-                    initialBlocks = Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_BLOCKS;
-                } catch (e) {
-                    initialBlocks = DEFAULT_BLOCKS;
+            try {
+                setInitializationStep('Checking authentication...');
+                setInitializationProgress(10);
+                
+                if (!user) {
+                    console.log('[GardenBuilder] No user found');
+                    setInitializationStep('Please sign in');
+                    setIsInitializing(false);
+                    return;
+                }
+                
+                console.log('[GardenBuilder] User authenticated:', user.email);
+                setInitializationStep('Loading your garden...');
+                setInitializationProgress(30);
+                
+                // Clear localStorage when user changes to prevent cross-user contamination
+                const currentUserId = user.id;
+                const lastUserId = localStorage.getItem('last-user-id');
+                
+                if (currentUserId !== lastUserId) {
+                    localStorage.removeItem('garden-blocks');
+                    localStorage.removeItem('garden-name');
+                    localStorage.removeItem('garden-new-user');
+                    localStorage.removeItem('garden-backup');
+                    localStorage.setItem('last-user-id', currentUserId);
+                }
+
+                // Load UI preferences
+                const savedGrid = localStorage.getItem('garden-show-grid');
+                const savedPadding = localStorage.getItem('garden-padding');
+                const savedShowTitle = localStorage.getItem('garden-show-title');
+
+                if (savedGrid === 'true') setShowGrid(true);
+                if (savedPadding) setSidePadding(parseInt(savedPadding));
+                if (savedShowTitle === 'false') setShowGardenTitle(false);
+
+                setInitializationStep('Setting up your space...');
+                setInitializationProgress(50);
+
+                // Don't wait indefinitely for garden loading - set a timeout
+                let attempts = 0;
+                const maxAttempts = 10;
+                
+                while (gardenLoading && attempts < maxAttempts && mounted) {
+                    console.log('[GardenBuilder] Waiting for garden to load, attempt:', attempts + 1);
+                    setInitializationStep(`Loading garden data... (${attempts + 1}/${maxAttempts})`);
+                    setInitializationProgress(60 + (attempts * 2));
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    attempts++;
+                }
+
+                if (attempts >= maxAttempts) {
+                    console.log('[GardenBuilder] Garden loading timeout, proceeding anyway');
+                }
+
+                setInitializationProgress(80);
+                console.log('[GardenBuilder] Garden loading complete:', { garden: !!garden });
+
+                if (garden) {
+                    // User has garden data in database - use it
+                    console.log('[GardenBuilder] Using existing garden:', garden.title);
+                    setInitializationStep('Restoring your garden...');
+                    setBlocks(garden.tiles || DEFAULT_BLOCKS);
+                    setGardenName(garden.title || 'My Garden');
+                    setIsNewUser(false); // User has data, not new
+                    
+                    // Check for local backup
+                    const backup = checkForLocalBackup();
+                    if (backup && backup.gardenId === garden.id) {
+                        const shouldRestore = window.confirm(
+                            'We found unsaved changes from a previous session. Would you like to restore them?'
+                        );
+                        if (shouldRestore) {
+                            restoreFromLocalBackup();
+                            setBlocks(backup.tiles || garden.tiles || DEFAULT_BLOCKS);
+                            setGardenName(backup.title || garden.title || 'My Garden');
+                        }
+                    }
+                } else {
+                    // User is authenticated but no garden data - check if we need to create one
+                    console.log('[GardenBuilder] No garden found, creating new one');
+                    setInitializationStep('Creating your garden...');
+                    
+                    const savedBlocks = localStorage.getItem('garden-blocks');
+                    const savedName = localStorage.getItem('garden-name');
+                    const savedUser = localStorage.getItem('garden-new-user');
+                    
+                    let initialBlocks = DEFAULT_BLOCKS;
+                    let initialName = 'My Garden';
+                    let shouldShowOnboarding = true;
+                    
+                    if (savedBlocks) {
+                        try {
+                            const parsed = JSON.parse(savedBlocks);
+                            initialBlocks = Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_BLOCKS;
+                        } catch (e) {
+                            initialBlocks = DEFAULT_BLOCKS;
+                        }
+                    }
+                    
+                    if (savedName) initialName = savedName;
+                    if (savedUser === 'false') shouldShowOnboarding = false;
+                    
+                    setBlocks(initialBlocks);
+                    setGardenName(initialName);
+                    setIsNewUser(shouldShowOnboarding);
+                    
+                    // Create garden in database if user doesn't have one
+                    if (!garden) {
+                        try {
+                            await createGarden({
+                                title: initialName,
+                                tiles: initialBlocks,
+                                layout: { showGrid, sidePadding, showGardenTitle }
+                            });
+                        } catch (error) {
+                            console.error('Failed to create garden:', error);
+                            // Continue with local state even if creation fails
+                        }
+                    }
+                }
+
+                setInitializationStep('Almost ready...');
+                setInitializationProgress(95);
+                
+                // Small delay to show completion
+                setTimeout(() => {
+                    if (mounted) {
+                        setInitializationProgress(100);
+                        setIsInitializing(false);
+                        setIsMount(true);
+                    }
+                }, 300);
+                
+            } catch (error) {
+                console.error('Initialization error:', error);
+                if (mounted) {
+                    setInitializationStep('Error loading garden');
+                    setIsInitializing(false);
+                    setIsMount(true);
                 }
             }
-            
-            if (savedName) initialName = savedName;
-            
-            setBlocks(initialBlocks);
-            setGardenName(initialName);
-            
-            // Create garden in database for new user
-            if (!garden && user) {
-                createGarden({
-                    title: initialName,
-                    tiles: initialBlocks,
-                    layout: { showGrid, sidePadding, showGardenTitle }
-                });
-            }
-            
-            if (savedUser === 'false') setIsNewUser(false);
-        } else {
-            // No user - use defaults
-            setBlocks(DEFAULT_BLOCKS);
-            setGardenName('My Garden');
-            setIsNewUser(true);
-        }
+        };
 
-        // Check for local backup only if user matches
-        if (user && garden) {
-            const backup = checkForLocalBackup();
-            if (backup && backup.gardenId === garden.id) {
-                const shouldRestore = window.confirm(
-                    'We found unsaved changes from a previous session. Would you like to restore them?'
-                );
-                if (shouldRestore) {
-                    restoreFromLocalBackup();
-                }
-            }
-        }
-
-        setTimeout(() => setIsMount(true), 100);
-    }, [garden, user, checkForLocalBackup, restoreFromLocalBackup]);
+        // Add a small delay to prevent immediate execution
+        const timer = setTimeout(initializeApp, 100);
+        
+        return () => {
+            mounted = false;
+            clearTimeout(timer);
+        };
+    }, [user, garden, gardenLoading, checkForLocalBackup, restoreFromLocalBackup, createGarden, loadUserGarden]);
 
     // --- PERSISTENCE ---
     useEffect(() => {
-        if (!isMount) return;
+        if (!isMount || !user) return;
         
         // Save to localStorage as backup
         localStorage.setItem('garden-blocks', JSON.stringify(blocks));
@@ -181,10 +260,23 @@ export default function GardenBuilder() {
         localStorage.setItem('garden-show-title', String(showGardenTitle));
         
         // Auto-save to database if user is authenticated and garden exists
-        if (user && garden) {
+        if (garden) {
+            console.log('Auto-saving garden data...', { 
+                blocksCount: blocks.length, 
+                gardenId: garden.id,
+                gardenName 
+            });
             autoSave(blocks, { showGrid, sidePadding, showGardenTitle }, gardenName);
+        } else if (user && blocks.length > 0) {
+            // If no garden exists but we have blocks, create one
+            console.log('Creating garden for user...', { blocksCount: blocks.length });
+            createGarden({
+                title: gardenName,
+                tiles: blocks,
+                layout: { showGrid, sidePadding, showGardenTitle }
+            });
         }
-    }, [blocks, gardenName, isNewUser, isMount, showGrid, sidePadding, showGardenTitle, user, garden]); // Removed autoSave from dependencies
+    }, [blocks, gardenName, isNewUser, isMount, showGrid, sidePadding, showGardenTitle, user, garden, autoSave, createGarden]);
 
     // --- SMART GAP FINDING ---
     const findFirstGap = (w: number, h: number): { x: number; y: number } => {
@@ -303,30 +395,92 @@ export default function GardenBuilder() {
         await togglePublic();
     };
 
-    if (!isMount || gardenLoading) return <div className="min-h-screen bg-[#F9F9F9] flex items-center justify-center">
-        <div className="text-center">
-            <div className="w-8 h-8 bg-black rounded-full flex items-center justify-center mb-4 mx-auto">
-                <span className="text-white text-sm font-bold">🌱</span>
+    // Show loading screen while initializing or loading garden data
+    if (!isMount || gardenLoading || isInitializing) {
+        return (
+            <div className="min-h-screen bg-[#F9F9F9] flex items-center justify-center">
+                <div className="text-center max-w-md px-6">
+                    <div className="w-12 h-12 bg-black rounded-full flex items-center justify-center mb-6 mx-auto">
+                        <span className="text-white text-lg animate-pulse">🌱</span>
+                    </div>
+                    
+                    <div className="font-serif-display text-2xl sm:text-3xl italic mb-6 text-black/90">
+                        {initializationStep}
+                    </div>
+                    
+                    {/* Progress Bar */}
+                    <div className="w-full bg-black/10 rounded-full h-2 mb-3">
+                        <div 
+                            className="bg-black h-2 rounded-full transition-all duration-500 ease-out"
+                            style={{ width: `${initializationProgress}%` }}
+                        />
+                    </div>
+                    
+                    {/* Progress Percentage */}
+                    <div className="text-sm text-black/60 mb-6">
+                        {initializationProgress}%
+                    </div>
+                    
+                    {/* Save Status */}
+                    {saveStatus.status === 'saving' && (
+                        <div className="text-sm text-black/60">
+                            Saving your changes...
+                        </div>
+                    )}
+                    
+                    {saveStatus.status === 'error' && (
+                        <div className="text-sm text-red-600">
+                            {saveStatus.error || 'Failed to save'}
+                        </div>
+                    )}
+                    
+                    {saveStatus.status === 'saved' && saveStatus.lastSaved && (
+                        <div className="text-sm text-green-600">
+                            Saved {new Date(saveStatus.lastSaved).toLocaleTimeString()}
+                        </div>
+                    )}
+                </div>
             </div>
-            <p className="text-black/60">Loading your garden...</p>
-        </div>
-    </div>;
+        );
+    }
 
     return (
         <div className="min-h-screen bg-[#F9F9F9] overflow-x-hidden selection:bg-black selection:text-white">
             <AnimatePresence>
                 {isNewUser && (
                     <Onboarding
-                        onComplete={(d) => {
+                        onComplete={async (d) => {
+                            console.log('Onboarding completed:', d);
                             setGardenName(d.name);
                             setIsNewUser(false);
+                            
+                            // Ensure garden is created with the new name
+                            if (user && !garden) {
+                                try {
+                                    await createGarden({
+                                        title: d.name,
+                                        tiles: blocks,
+                                        layout: { showGrid, sidePadding, showGardenTitle }
+                                    });
+                                    console.log('Garden created successfully after onboarding');
+                                } catch (error) {
+                                    console.error('Failed to create garden after onboarding:', error);
+                                }
+                            } else if (garden) {
+                                // Update existing garden with new name
+                                autoSave(blocks, { showGrid, sidePadding, showGardenTitle }, d.name);
+                            }
+                            
+                            // Save to localStorage
+                            localStorage.setItem('garden-name', d.name);
+                            localStorage.setItem('garden-new-user', 'false');
                         }}
                     />
                 )}
             </AnimatePresence>
 
             {/* SMART EDITOR TOP BAR */}
-            <TopBar
+            <SplitTopBar
                 gardenName={gardenName}
                 onGardenNameChange={handleGardenNameChange}
                 saveStatus={saveStatus}
@@ -337,6 +491,12 @@ export default function GardenBuilder() {
                 categories={categories}
                 activeFilter={filter}
                 onFilterChange={setFilter}
+                isOwner={true} // Always true in GardenBuilder since it's the owner's view
+                gardenOwner={user ? {
+                    displayName: user.displayName,
+                    email: user.email,
+                    avatarUrl: user.avatarUrl
+                } : undefined}
             />
 
             {/* MAIN PORTAL AREA */}
@@ -453,6 +613,9 @@ export default function GardenBuilder() {
                 onSave={handleSaveTile}
                 onDelete={handleDeleteTile}
             />
+            
+            {/* Debug Panel - only show in development */}
+            {process.env.NODE_ENV === 'development' && <DebugPanel />}
         </div>
     );
 }

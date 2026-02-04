@@ -8,7 +8,7 @@ import {
     ThoughtTile, 
     QuoteTile, 
     ImageTileBlock, 
-    VideoTile, 
+    VideoTileBlock,
     StatusTile,
     WritingTileBlock, 
     ProjectTile 
@@ -502,67 +502,73 @@ export const Block = React.forwardRef<HTMLDivElement, BlockProps>(({
                 )}
             </AnimatePresence>
 
-            {/* CONTENT RENDER */}
-            <div className="no-drag flex h-full flex-col p-4 sm:p-6 lg:p-8 pointer-events-none select-none">
-                <div className="mb-4 sm:mb-6 flex items-start justify-between">
-                    <button
-                        onClick={handleColorCycle}
-                        className={cn(
-                            "no-drag text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] text-black/30 transition-colors hover:text-black pointer-events-auto",
-                            isEditMode && "pointer-events-none"
+            {/* IMAGE TILES - SPECIAL FULL-TILE RENDERING */}
+            {data.type === 'image' && (
+                <div className="absolute inset-0 pointer-events-auto">
+                    <ImageTileBlock data={data} isEditMode={isEditMode} isDebugMode={isDebugMode} />
+                </div>
+            )}
+
+            {/* VIDEO TILES - SPECIAL FULL-TILE RENDERING */}
+            {data.type === 'video' && (
+                <div className="absolute inset-0 pointer-events-auto">
+                    <VideoTileBlock 
+                        data={data} 
+                        isEditMode={isEditMode} 
+                        isDebugMode={isDebugMode}
+                        onUpdate={onUpdate}
+                    />
+                </div>
+            )}
+
+            {/* CONTENT RENDER - Skip for image and video tiles */}
+            {data.type !== 'image' && data.type !== 'video' && (
+                <div className="no-drag flex h-full flex-col p-4 sm:p-6 lg:p-8 pointer-events-none select-none">
+                    <div className="mb-4 sm:mb-6 flex items-start justify-between">
+                        <button
+                            onClick={handleColorCycle}
+                            className={cn(
+                                "no-drag text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] text-black/30 transition-colors hover:text-black pointer-events-auto",
+                                isEditMode && "pointer-events-none"
+                            )}
+                        >
+                            {data.category}
+                        </button>
+                        {!data.isPolaroid && data.link && <ArrowUpRight className="h-3 w-3 sm:h-4 sm:w-4 text-black/20 group-hover:text-black/40 transition-colors" />}
+                    </div>
+                    <div className="no-drag flex-1 relative flex items-center justify-center w-full">
+                        {/* TEXT BLOCK */}
+                        {data.type === 'text' && (
+                            <TextTile data={data} isEditMode={isEditMode} isDebugMode={isDebugMode} />
                         )}
-                    >
-                        {data.category}
-                    </button>
-                    {!data.isPolaroid && data.link && <ArrowUpRight className="h-3 w-3 sm:h-4 sm:w-4 text-black/20 group-hover:text-black/40 transition-colors" />}
+
+                        {/* STICKY NOTE */}
+                        {data.type === 'thought' && (
+                            <ThoughtTile data={data} isEditMode={isEditMode} isDebugMode={isDebugMode} />
+                        )}
+
+                        {/* QUOTE BLOCK */}
+                        {data.type === 'quote' && (
+                            <QuoteTile data={data} isEditMode={isEditMode} isDebugMode={isDebugMode} />
+                        )}
+
+                        {/* PROJECT TILE - Your Figma Design */}
+                        {data.type === 'project' && (
+                            <ProjectTile data={data} isEditMode={isEditMode} isDebugMode={isDebugMode} />
+                        )}
+
+                        {/* STATUS BLOCK */}
+                        {data.type === 'status' && (
+                            <StatusTile data={data} isEditMode={isEditMode} isDebugMode={isDebugMode} />
+                        )}
+
+                        {/* WRITING BLOCK */}
+                        {data.type === 'writing' && (
+                            <WritingTileBlock data={data} isEditMode={isEditMode} isDebugMode={isDebugMode} />
+                        )}
+                    </div>
                 </div>
-                <div className="no-drag flex-1 relative flex items-center justify-center w-full">
-                    {/* TEXT BLOCK */}
-                    {data.type === 'text' && (
-                        <TextTile data={data} isEditMode={isEditMode} isDebugMode={isDebugMode} />
-                    )}
-
-                    {/* STICKY NOTE */}
-                    {data.type === 'thought' && (
-                        <ThoughtTile data={data} isEditMode={isEditMode} isDebugMode={isDebugMode} />
-                    )}
-
-                    {/* QUOTE BLOCK */}
-                    {data.type === 'quote' && (
-                        <QuoteTile data={data} isEditMode={isEditMode} isDebugMode={isDebugMode} />
-                    )}
-
-                    {/* PROJECT TILE - Your Figma Design */}
-                    {data.type === 'project' && (
-                        <ProjectTile data={data} isEditMode={isEditMode} isDebugMode={isDebugMode} />
-                    )}
-
-                    {/* IMAGE BLOCK */}
-                    {data.type === 'image' && (
-                        <ImageTileBlock data={data} isEditMode={isEditMode} isDebugMode={isDebugMode} />
-                    )}
-
-                    {/* VIDEO BLOCK */}
-                    {data.type === 'video' && (
-                        <VideoTile 
-                            data={data} 
-                            isEditMode={isEditMode} 
-                            isDebugMode={isDebugMode}
-                            onUpdate={onUpdate}
-                        />
-                    )}
-
-                    {/* STATUS BLOCK */}
-                    {data.type === 'status' && (
-                        <StatusTile data={data} isEditMode={isEditMode} isDebugMode={isDebugMode} />
-                    )}
-
-                    {/* WRITING BLOCK */}
-                    {data.type === 'writing' && (
-                        <WritingTileBlock data={data} isEditMode={isEditMode} isDebugMode={isDebugMode} />
-                    )}
-                </div>
-            </div>
+            )}
         </div>
     );
 });
