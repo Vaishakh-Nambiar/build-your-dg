@@ -66,7 +66,7 @@ export const FormPanel: React.FC<FormPanelProps> = ({
         if (onValidationChange) {
             onValidationChange(validation.isValid && Object.keys(fileUploadErrors).length === 0, validation.errors);
         }
-    }, [tileData, touchedFields, fileUploadErrors, onValidationChange]);
+    }, [tileData, touchedFields, fileUploadErrors]); // Removed onValidationChange from dependencies
 
     // Handle field blur (mark as touched and validate)
     const handleFieldBlur = (fieldName: string) => {

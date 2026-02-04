@@ -76,26 +76,26 @@ export const SidebarEditor: React.FC<SidebarEditorProps> = ({
     }, [currentTile]);
 
     // Handle tile updates from form
-    const handleTileUpdate = (updates: Partial<BlockData>) => {
+    const handleTileUpdate = useCallback((updates: Partial<BlockData>) => {
         if (!editedTile) return;
         
         const updatedTile = { ...editedTile, ...updates };
         setEditedTile(updatedTile);
         setIsDirty(true);
-    };
+    }, [editedTile]);
 
     // Handle validation state changes from FormPanel
-    const handleValidationChange = (valid: boolean, errors: ValidationError[]) => {
+    const handleValidationChange = useCallback((valid: boolean, errors: ValidationError[]) => {
         setIsValid(valid);
         setValidationErrors(errors);
-    };
+    }, []);
 
     // Handle file upload errors
-    const handleFileUploadError = (error: string) => {
+    const handleFileUploadError = useCallback((error: string) => {
         setFileUploadError(error);
         // Clear after 5 seconds
         setTimeout(() => setFileUploadError(null), 5000);
-    };
+    }, []);
 
     // Handle save action
     const handleSave = () => {

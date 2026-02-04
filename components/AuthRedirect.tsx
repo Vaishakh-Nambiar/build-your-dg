@@ -9,17 +9,18 @@ interface AuthRedirectProps {
 }
 
 export function AuthRedirect({ children }: AuthRedirectProps) {
-  const { user, loading } = useAuth();
+  const { user, loading, error } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    if (!loading && user) {
+    // Only redirect if we have a valid user and no errors
+    if (!loading && user && !error) {
       // Redirect authenticated users to return URL or edit page
       const returnTo = searchParams.get('returnTo') || '/edit';
       router.push(returnTo);
     }
-  }, [user, loading, router, searchParams]);
+  }, [user, loading, error, router, searchParams]);
 
   // Show loading while checking authentication
   if (loading) {
@@ -33,8 +34,8 @@ export function AuthRedirect({ children }: AuthRedirectProps) {
     );
   }
 
-  // Don't render children if authenticated (will redirect)
-  if (user) {
+  // Don't render children if authenticated and no errors (will redirect)
+  if (user && !error) {
     return null;
   }
 

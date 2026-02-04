@@ -48,8 +48,8 @@ const VALIDATION_RULES = {
         author: 2
     },
     
-    // URL validation pattern (more comprehensive)
-    URL_PATTERN: /^https?:\/\/(?:[-\w.])+(?:\:[0-9]+)?(?:\/(?:[\w\/_.])*(?:\?(?:[\w&=%.])*)?(?:\#(?:[\w.])*)?)?$/,
+    // URL validation pattern (more comprehensive to handle Supabase URLs)
+    URL_PATTERN: /^https?:\/\/[^\s<>"{}|\\^`\[\]]+$/,
     
     // Color validation pattern (hex colors)
     COLOR_PATTERN: /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/,
@@ -65,7 +65,31 @@ const VALIDATION_RULES = {
  * Validates a single field value
  */
 function validateField(field: string, value: any, tileType: BlockType): ValidationError | null {
-    // Check required fields based on tile type
+    // Special handling for media fields - don't show required error if field is empty
+    // This allows users to select image/video type without immediately seeing errors
+    if ((field === 'imageUrl' && tileType === 'image') || (field === 'videoUrl' && tileType === 'video')) {
+        // If field is empty, don't show error (user hasn't tried to fill it yet)
+        if (!value || value.toString().trim() === '') {
+            return null;
+        }
+        
+        // If field has a value, validate its format
+        const stringValue = value.toString().trim();
+        const isBlobUrl = stringValue.startsWith('blob:');
+        const isSupabaseUrl = stringValue.includes('.supabase.co/storage/');
+        const isValidUrl = VALIDATION_RULES.URL_PATTERN.test(stringValue);
+        
+        if (!isBlobUrl && !isSupabaseUrl && !isValidUrl) {
+            return {
+                field,
+                message: `${field} must be a valid URL (e.g., https://example.com)`
+            };
+        }
+        
+        return null;
+    }
+    
+    // Check required fields based on tile type (excluding media fields handled above)
     if (isFieldRequired(field, tileType) && (!value || value.toString().trim() === '')) {
         return {
             field,
@@ -100,11 +124,12 @@ function validateField(field: string, value: any, tileType: BlockType): Validati
     
     // URL validation (allow blob URLs for uploaded files)
     if ((field === 'link' || field === 'imageUrl' || field === 'videoUrl' || field === 'showcaseBackground') && stringValue) {
-        // Allow blob URLs (for uploaded files) or regular URLs
+        // Allow blob URLs (for uploaded files), Supabase URLs, or regular URLs
         const isBlobUrl = stringValue.startsWith('blob:');
+        const isSupabaseUrl = stringValue.includes('.supabase.co/storage/');
         const isValidUrl = VALIDATION_RULES.URL_PATTERN.test(stringValue);
         
-        if (!isBlobUrl && !isValidUrl) {
+        if (!isBlobUrl && !isSupabaseUrl && !isValidUrl) {
             return {
                 field,
                 message: `${field} must be a valid URL (e.g., https://example.com)`
@@ -159,11 +184,15 @@ function isFieldRequired(field: string, tileType: BlockType): boolean {
         case 'quote':
             return field === 'content' || field === 'author';
         case 'image':
+            // imageUrl is required, but we'll handle this specially in form submission
             return field === 'imageUrl';
         case 'video':
+            // videoUrl is required, but we'll handle this specially in form submission
             return field === 'videoUrl';
         case 'project':
             return field === 'title' || field === 'content';
+        case 'writing':
+            return field === 'title' || field === 'excerpt' || field === 'publishedAt';
         case 'status':
             return field === 'title';
         default:
@@ -307,24 +336,46 @@ export function validateFormSubmission(tileData: BlockData): ValidationResult {
         }
     }
     
-    // Validate that media tiles have valid URLs or uploaded files
-    if (tileData.type === 'image' && tileData.imageUrl) {
-        // Check if it's a blob URL (uploaded file) or external URL
-        if (!tileData.imageUrl.startsWith('blob:') && !VALIDATION_RULES.URL_PATTERN.test(tileData.imageUrl)) {
+    // Special validation for media tiles - only show error if no URL is provided at all
+    if (tileData.type === 'image') {
+        if (!tileData.imageUrl || tileData.imageUrl.trim() === '') {
             additionalErrors.push({
                 field: 'imageUrl',
-                message: 'Please provide a valid image URL or upload a file'
+                message: 'Please provide an image URL or upload a file'
             });
+        } else {
+            // If URL is provided, validate its format
+            const isBlobUrl = tileData.imageUrl.startsWith('blob:');
+            const isSupabaseUrl = tileData.imageUrl.includes('.supabase.co/storage/');
+            const isValidUrl = VALIDATION_RULES.URL_PATTERN.test(tileData.imageUrl);
+            
+            if (!isBlobUrl && !isSupabaseUrl && !isValidUrl) {
+                additionalErrors.push({
+                    field: 'imageUrl',
+                    message: 'Please provide a valid image URL or upload a file'
+                });
+            }
         }
     }
     
-    if (tileData.type === 'video' && tileData.videoUrl) {
-        // Check if it's a blob URL (uploaded file) or external URL
-        if (!tileData.videoUrl.startsWith('blob:') && !VALIDATION_RULES.URL_PATTERN.test(tileData.videoUrl)) {
+    if (tileData.type === 'video') {
+        if (!tileData.videoUrl || tileData.videoUrl.trim() === '') {
             additionalErrors.push({
                 field: 'videoUrl',
-                message: 'Please provide a valid video URL or upload a file'
+                message: 'Please provide a video URL or upload a file'
             });
+        } else {
+            // If URL is provided, validate its format
+            const isBlobUrl = tileData.videoUrl.startsWith('blob:');
+            const isSupabaseUrl = tileData.videoUrl.includes('.supabase.co/storage/');
+            const isValidUrl = VALIDATION_RULES.URL_PATTERN.test(tileData.videoUrl);
+            
+            if (!isBlobUrl && !isSupabaseUrl && !isValidUrl) {
+                additionalErrors.push({
+                    field: 'videoUrl',
+                    message: 'Please provide a valid video URL or upload a file'
+                });
+            }
         }
     }
     

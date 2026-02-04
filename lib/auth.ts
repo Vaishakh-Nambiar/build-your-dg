@@ -100,26 +100,45 @@ export const authService = {
   async getCurrentUser(): Promise<User | null> {
     const supabase = createBrowserSupabaseClient();
     
-    const { data: { user }, error } = await supabase.auth.getUser();
-    
-    if (error || !user) {
+    try {
+      const { data: { user }, error } = await supabase.auth.getUser();
+      
+      // If there's an error indicating invalid session, return null
+      if (error) {
+        console.log('[Auth] Error getting user:', error.message);
+        
+        // Clear the session if it's invalid
+        if (error.message.includes('User from sub claim in JWT does not exist') ||
+            error.message.includes('Auth session missing')) {
+          console.log('[Auth] Clearing invalid session');
+          await supabase.auth.signOut();
+        }
+        
+        return null;
+      }
+      
+      if (!user) {
+        return null;
+      }
+
+      // Ensure user profile exists in database
+      try {
+        await userService.ensureUserProfile(
+          user.id,
+          user.email!,
+          user.user_metadata?.display_name || user.user_metadata?.name,
+          user.user_metadata?.avatar_url
+        );
+      } catch (error) {
+        console.error('Failed to ensure user profile:', error);
+        // Continue anyway - auth user exists even if profile creation fails
+      }
+
+      return mapSupabaseUser(user);
+    } catch (error) {
+      console.error('[Auth] Unexpected error getting user:', error);
       return null;
     }
-
-    // Ensure user profile exists in database
-    try {
-      await userService.ensureUserProfile(
-        user.id,
-        user.email!,
-        user.user_metadata?.display_name || user.user_metadata?.name,
-        user.user_metadata?.avatar_url
-      );
-    } catch (error) {
-      console.error('Failed to ensure user profile:', error);
-      // Continue anyway - auth user exists even if profile creation fails
-    }
-
-    return mapSupabaseUser(user);
   },
 
   async signInWithOAuth(provider: 'google' | 'github'): Promise<void> {
@@ -146,6 +165,8 @@ export const authService = {
     
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('[Auth] Auth state change event:', event, session ? 'with session' : 'no session');
+        
         if (session?.user) {
           // Ensure user profile exists in database
           try {
@@ -155,13 +176,17 @@ export const authService = {
               session.user.user_metadata?.display_name || session.user.user_metadata?.name,
               session.user.user_metadata?.avatar_url
             );
+            
+            const user = mapSupabaseUser(session.user);
+            callback(user);
           } catch (error) {
             console.error('Failed to ensure user profile:', error);
+            // If user profile creation fails, still return the user
+            const user = mapSupabaseUser(session.user);
+            callback(user);
           }
-          
-          const user = mapSupabaseUser(session.user);
-          callback(user);
         } else {
+          // No session or user, clear the user state
           callback(null);
         }
       }

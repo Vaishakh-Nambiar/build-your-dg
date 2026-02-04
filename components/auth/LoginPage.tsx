@@ -19,6 +19,14 @@ export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // Check for middleware errors
+  const middlewareError = searchParams.get('error');
+  const errorMessage = middlewareError === 'session_expired' 
+    ? 'Your session has expired. Please sign in again.'
+    : middlewareError === 'authentication_error'
+    ? 'Authentication error occurred. Please sign in again.'
+    : null;
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -73,6 +81,24 @@ export function LoginPage() {
       console.error('OAuth login error:', error);
       setErrors({ general: `${provider} login failed. Please try again.` });
     }
+  };
+
+  const clearSessionData = () => {
+    // Clear all local storage
+    localStorage.clear();
+    
+    // Clear all session storage
+    sessionStorage.clear();
+    
+    // Clear all cookies by setting them to expire
+    document.cookie.split(";").forEach((c) => {
+      const eqPos = c.indexOf("=");
+      const name = eqPos > -1 ? c.substr(0, eqPos) : c;
+      document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
+    });
+    
+    // Reload the page to ensure clean state
+    window.location.reload();
   };
 
   return (
@@ -135,9 +161,19 @@ export function LoginPage() {
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
-            {(errors.general || error) && (
+            {(errors.general || error || errorMessage) && (
               <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
-                {errors.general || error}
+                <div className="mb-2">{errors.general || error || errorMessage}</div>
+                {(errorMessage === 'Your session has expired. Please sign in again.' || 
+                  errorMessage === 'Authentication error occurred. Please sign in again.') && (
+                  <button
+                    type="button"
+                    onClick={clearSessionData}
+                    className="text-xs underline hover:no-underline"
+                  >
+                    Clear all session data and refresh
+                  </button>
+                )}
               </div>
             )}
 

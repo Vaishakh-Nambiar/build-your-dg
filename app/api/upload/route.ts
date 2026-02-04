@@ -65,22 +65,27 @@ export async function POST(request: NextRequest) {
       .from('media')
       .getPublicUrl(fileName);
 
-    // Store media asset record in database
-    const { error: dbError } = await supabase
-      .from('media_assets')
-      .insert({
-        user_id: user.id,
-        garden_id: 'default', // We'll update this when we have garden context
-        file_name: file.name,
-        file_type: file.type,
-        file_size: file.size,
-        storage_path: fileName,
-        alt_text: file.name
-      });
+    // Store media asset record in database (optional - don't fail upload if this fails)
+    try {
+      const { error: dbError } = await supabase
+        .from('media_assets')
+        .insert({
+          user_id: user.id,
+          garden_id: null, // Allow null garden_id for now
+          file_name: file.name,
+          file_type: file.type,
+          file_size: file.size,
+          storage_path: fileName,
+          alt_text: file.name
+        });
 
-    if (dbError) {
-      console.error('Database error:', dbError);
-      // Don't fail the upload if database insert fails
+      if (dbError) {
+        console.error('Database error (non-critical):', dbError);
+        // Don't fail the upload if database insert fails
+      }
+    } catch (dbError) {
+      console.error('Database insert failed (non-critical):', dbError);
+      // Continue with successful upload response
     }
 
     return NextResponse.json({

@@ -68,6 +68,70 @@ export async function middleware(request: NextRequest) {
     
     // Get the current user session with error handling
     const { data: { user }, error } = await supabase.auth.getUser();
+    
+    // If there's an error indicating the user doesn't exist, handle it
+    if (error && error.message.includes('User from sub claim in JWT does not exist')) {
+      console.log(`[Middleware] Invalid session detected for ${pathname}`);
+      
+      // For protected routes, redirect to login with session cleared
+      if (isProtectedRoute(pathname)) {
+        const loginUrl = new URL('/login', request.url);
+        loginUrl.searchParams.set('returnTo', pathname);
+        loginUrl.searchParams.set('error', 'session_expired');
+        
+        // Create a response that clears the auth cookies
+        const response = NextResponse.redirect(loginUrl);
+        
+        // Clear Supabase auth cookies
+        response.cookies.delete('sb-access-token');
+        response.cookies.delete('sb-refresh-token');
+        response.cookies.delete('supabase-auth-token');
+        response.cookies.delete('supabase.auth.token');
+        
+        // Clear all cookies that might contain auth data
+        const cookieNames = ['sb-edlnihzcvjndkcdomjei-auth-token', 'sb-edlnihzcvjndkcdomjei-auth-token.0', 'sb-edlnihzcvjndkcdomjei-auth-token.1'];
+        cookieNames.forEach(name => {
+          response.cookies.set(name, '', { 
+            expires: new Date(0),
+            path: '/',
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax'
+          });
+        });
+        
+        return response;
+      }
+      
+      // For auth routes, just continue (don't redirect)
+      if (isAuthRoute(pathname)) {
+        // Create response that clears cookies but doesn't redirect
+        const response = supabaseResponse;
+        
+        // Clear auth cookies
+        response.cookies.delete('sb-access-token');
+        response.cookies.delete('sb-refresh-token');
+        response.cookies.delete('supabase-auth-token');
+        response.cookies.delete('supabase.auth.token');
+        
+        const cookieNames = ['sb-edlnihzcvjndkcdomjei-auth-token', 'sb-edlnihzcvjndkcdomjei-auth-token.0', 'sb-edlnihzcvjndkcdomjei-auth-token.1'];
+        cookieNames.forEach(name => {
+          response.cookies.set(name, '', { 
+            expires: new Date(0),
+            path: '/',
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax'
+          });
+        });
+        
+        return response;
+      }
+      
+      // For other routes, continue without authentication
+      return supabaseResponse;
+    }
+    
     const isAuthenticated = !!user && !error;
 
     // Log authentication status for debugging (only in development)
